@@ -170,12 +170,27 @@ function parseSessionStatus(text) {
   };
 }
 
+function readSnippet(filePath, maxLines = 8) {
+  try {
+    const text = fs.readFileSync(filePath, 'utf8');
+    return text
+      .split(/\r?\n/)
+      .filter((line) => line.trim())
+      .slice(0, maxLines)
+      .join('\n');
+  } catch {
+    return null;
+  }
+}
+
 function getContextData() {
   const status = safeRun('openclaw status');
   const memory = getMemoryFiles();
   const projects = getProjectsData();
   const recentJournal = memory.files[0] || null;
   const activeProject = projects.projects[0] || null;
+  const journalSnippet = recentJournal ? readSnippet(recentJournal.path, 10) : null;
+  const longTermSnippet = memory.hasLongTerm ? readSnippet(memory.longTermPath, 12) : null;
 
   return {
     statusOk: status.ok,
@@ -186,6 +201,8 @@ function getContextData() {
     projectsCount: projects.count,
     longTermMemoryPath: memory.longTermPath,
     recentJournal,
+    journalSnippet,
+    longTermSnippet,
     focusAreas: [
       'Mission Control development',
       'Memory and journal upkeep',
@@ -703,6 +720,16 @@ app.get('/context', (req, res) => {
           <div><strong>Path:</strong> <code>${context.activeProject ? context.activeProject.path : '—'}</code></div>
           <div><strong>Description:</strong> ${context.activeProject ? context.activeProject.description : 'No project folders have been picked up yet.'}</div>
         </div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="panel">
+        <div class="label">Recent journal snippet</div>
+        <pre>${context.journalSnippet || 'No recent journal snippet available yet.'}</pre>
+      </div>
+      <div class="panel">
+        <div class="label">Long-term memory snippet</div>
+        <pre>${context.longTermSnippet || 'No long-term memory snippet available yet.'}</pre>
       </div>
     </div>
     <div class="panel">

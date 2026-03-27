@@ -24,7 +24,7 @@ Then open:
 - `/projects` — projects discovered under `~/gizmos_projects`
 - `/skills` — available OpenClaw skills visible to Gizmo
 - `/activity` — recent commits, journals, projects, and job signals
-- `/context` — Gizmo session/context visibility
+- `/context` — Gizmo session/context visibility with recent memory snippets
 - `/memory` — journal + long-term memory scaffold
 - `/docs` — docs/artifacts browser scaffold
 - `/team` — active team/agent view scaffold

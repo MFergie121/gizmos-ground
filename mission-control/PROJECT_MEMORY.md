@@ -20,7 +20,7 @@ It is effectively the home base for staying on top of Gizmo’s activity and vis
 - `/projects` — project discovery view based on folders under `~/gizmos_projects`
 - `/skills` — skills discovery view based on the OpenClaw skills directory
 - `/activity` — recent activity feed across commits, journals, projects, and jobs
-- `/context` — Gizmo context/session visibility page
+- `/context` — Gizmo context/session visibility page with recent memory snippets
 - `/memory` — journal and long-term memory file browser scaffold
 - `/docs` — recent docs/artifacts browser across this repo and the OpenClaw workspace
 - `/team` — simple team/agent view backed by `openclaw status --all`
