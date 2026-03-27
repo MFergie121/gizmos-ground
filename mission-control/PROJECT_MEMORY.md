@@ -3,9 +3,9 @@
 ## Purpose
 
 Mission Control is the local operator dashboard inside `gizmos-ground`.
-Its job is to give Max and Gizmo a single place to inspect the state of ongoing assistant operations, memory, documentation, and scheduled automation.
+Its main purpose is to help Max showcase and understand Gizmo: what Gizmo is getting up to, what context Gizmo has, and what Gizmo is helping out with.
 
-This project appears to be evolving from a static generated schedule page into a live local web application.
+It is effectively the home base for staying on top of Gizmo’s activity and visibility, rather than just a generic dashboard.
 
 ## Current functionality
 
@@ -32,24 +32,19 @@ This project appears to be evolving from a static generated schedule page into a
 - `mission-control/calendar/index.html` is still present, but the repo README says static generated dashboard files are transitional only.
 - The project is explicitly framed as the single source of truth for Mission Control.
 
-## Observed direction
+## Confirmed direction
 
-The project direction seems to be:
-1. move away from static HTML snapshots,
-2. create a live local operational dashboard,
-3. expose useful internal state for Max + Gizmo,
-4. grow into a broader control surface for memory, scheduling, docs, and team/agent visibility.
-
-## Open questions for Max
-
-These need confirmation so this file can become more accurate over time:
-- What are the highest-priority user flows for Mission Control?
-- Is this intended to stay local-only, or later become remotely accessible?
-- Should Mission Control remain read-only, or eventually support actions like triggering jobs, editing memory, or managing agents?
-- Which modules matter most next: schedule, memory, docs, team, notifications, logs, or something else?
-- Is `gizmos-ground` meant to hold only Mission Control, or a broader family of Gizmo tools?
+The confirmed project direction is:
+1. Mission Control is the repo for Gizmo’s Mission Control specifically,
+2. the old static workplace was just v1 and should be ignored going forward,
+3. the dashboard should help Max understand Gizmo’s activity, context, and assistance footprint,
+4. the next priorities are showcasing skills Max gives Gizmo,
+5. after that, continue brainstorming and layering on new useful features.
 
 ## Practical summary
 
 Right now, Mission Control is a lightweight local operations dashboard for Gizmo.
-It already surfaces useful internal state, and its likely purpose is to become the home base for supervising Max + Gizmo workflows without digging through raw files and CLI output.
+Its real role is to help Max observe, understand, and steer Gizmo more effectively by making Gizmo’s activity and context legible.
+
+Near-term, the most important next step is adding visibility for skills that Max gives Gizmo.
+After that, the project should expand through iterative brainstorming and feature development.
