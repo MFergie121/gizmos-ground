@@ -441,6 +441,13 @@ function layout(title, body, active = '/') {
       .pill.ok { color:#a7f3d0; background:rgba(16,185,129,.15); border-color:rgba(16,185,129,.35); }
       .pill.idle { color:#e5e7eb; background:rgba(107,114,128,.15); }
       .pill.warn { color:#fde68a; background:rgba(245,158,11,.15); border-color:rgba(245,158,11,.35); }
+      .pill.info { color:#bfdbfe; background:rgba(96,165,250,.15); border-color:rgba(96,165,250,.35); }
+      .stack { display:grid; gap:16px; }
+      .kv { display:grid; gap:8px; font-size:14px; }
+      .timeline { display:grid; gap:12px; }
+      .timeline-item { border:1px solid var(--line); border-radius:14px; padding:14px; background:rgba(31,41,55,.45); }
+      .timeline-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; margin-bottom:8px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       code, pre { white-space: pre-wrap; word-break: break-word; }
       pre { background:#0a0f1a; border:1px solid var(--line); padding:14px; border-radius:12px; overflow:auto; }
       ul { margin: 8px 0 0 18px; }
@@ -629,12 +636,18 @@ app.get('/projects', (req, res) => {
 
 app.get('/skills', (req, res) => {
   const skills = getSkillsData();
+  const documentedCount = skills.skills.filter((skill) => skill.hasSkillDoc).length;
   const cards = skills.skills.map((skill) => `
-    <div class="card">
-      <div class="label">${skill.hasSkillDoc ? 'Documented skill' : 'Skill folder'}</div>
-      <div class="stat" style="font-size:24px">${skill.name}</div>
-      <div class="muted" style="margin-top:8px">${skill.summary}</div>
-      <div style="margin-top:14px; display:grid; gap:8px; font-size:14px;">
+    <div class="card stack">
+      <div class="timeline-head">
+        <div>
+          <div class="label">${skill.hasSkillDoc ? 'Documented skill' : 'Skill folder'}</div>
+          <div class="stat" style="font-size:24px">${skill.name}</div>
+        </div>
+        <span class="pill ${skill.hasSkillDoc ? 'ok' : 'warn'}">${skill.hasSkillDoc ? 'Ready' : 'Thin docs'}</span>
+      </div>
+      <div class="muted">${skill.summary}</div>
+      <div class="kv">
         <div><strong>Path:</strong> <code>${skill.path}</code></div>
         <div><strong>SKILL.md:</strong> ${skill.hasSkillDoc ? 'Yes' : 'No'}</div>
         <div><strong>Doc path:</strong> <code>${skill.skillMdPath}</code></div>
@@ -642,10 +655,15 @@ app.get('/skills', (req, res) => {
     </div>`).join('');
 
   res.send(layout('Mission Control — Skills', `
-    <div class="top"><div><h1>Skills</h1><div class="muted">Skills currently available to Gizmo via the OpenClaw skills directory.</div></div></div>
+    <div class="top"><div><h1>Skills</h1><div class="muted">The capabilities Gizmo can reach for when work gets specific.</div></div></div>
     <div class="grid">
       <div class="card"><div class="label">Skills available</div><div class="stat">${skills.count}</div></div>
+      <div class="card"><div class="label">Documented skills</div><div class="stat">${documentedCount}</div></div>
       <div class="card"><div class="label">Skills root</div><div class="stat" style="font-size:16px; line-height:1.4">${skills.root}</div></div>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="label">What this page is for</div><div style="margin-top:8px">A quick map of what Gizmo can do without guessing or rummaging through the basement.</div></div>
+      <div class="card"><div class="label">Reading tip</div><div style="margin-top:8px">Skills marked <span class="pill ok">Ready</span> have a visible SKILL.md file. Anything thinner probably wants a future tidy-up.</div></div>
     </div>
     <div class="grid">${cards}</div>
     ${skills.error ? `<div class="panel" style="margin-top:20px"><div class="label">Error</div><pre>${skills.error}</pre></div>` : ''}
@@ -654,23 +672,39 @@ app.get('/skills', (req, res) => {
 
 app.get('/activity', (req, res) => {
   const activity = getRecentActivityData();
-  const rows = activity.items.length
-    ? activity.items.map((item) => `<tr><td>${item.type}</td><td>${item.subject}</td><td>${item.date || '—'}</td><td><code>${item.hash || item.path || item.label || '—'}</code></td></tr>`).join('')
-    : '<tr><td colspan="4">No recent activity found yet.</td></tr>';
+  const typeClass = (type) => ({ commit: 'ok', journal: 'info', project: 'warn', job: 'idle' }[type] || 'idle');
+  const feed = activity.items.length
+    ? activity.items.map((item) => `
+      <div class="timeline-item">
+        <div class="timeline-head">
+          <div>
+            <div class="label">${item.type}</div>
+            <div style="font-size:18px; font-weight:700; margin-top:4px">${item.subject}</div>
+          </div>
+          <span class="pill ${typeClass(item.type)}">${item.type}</span>
+        </div>
+        <div class="kv">
+          <div><strong>When:</strong> ${item.date || '—'}</div>
+          <div><strong>Ref:</strong> <span class="mono">${item.hash || item.path || item.label || '—'}</span></div>
+        </div>
+      </div>`).join('')
+    : '<div class="timeline-item">No recent activity found yet.</div>';
 
   res.send(layout('Mission Control — Activity', `
-    <div class="top"><div><h1>Recent Activity</h1><div class="muted">A stitched-together feed of recent commits, journals, projects, and scheduled work.</div></div></div>
+    <div class="top"><div><h1>Recent Activity</h1><div class="muted">A stitched-together feed of commits, journals, projects, and scheduled work.</div></div></div>
     <div class="grid">
       <div class="card"><div class="label">Recent items</div><div class="stat">${activity.items.length}</div></div>
       <div class="card"><div class="label">Commits sampled</div><div class="stat">${activity.commitsCount}</div></div>
       <div class="card"><div class="label">Journals known</div><div class="stat">${activity.journalsCount}</div></div>
       <div class="card"><div class="label">Projects known</div><div class="stat">${activity.projectsCount}</div></div>
     </div>
+    <div class="grid">
+      <div class="card"><div class="label">Why this matters</div><div style="margin-top:8px">This is the quickest answer to “what has Gizmo been doing lately?” without spelunking across five systems.</div></div>
+      <div class="card"><div class="label">Feed logic</div><div style="margin-top:8px">It blends git history, memory files, projects, and schedule signals into one timeline. Slightly stitched together, but very useful.</div></div>
+    </div>
     <div class="panel">
-      <table>
-        <thead><tr><th>Type</th><th>Event</th><th>When</th><th>Ref</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <div class="label">Timeline</div>
+      <div class="timeline">${feed}</div>
     </div>
     ${activity.gitError ? `<div class="panel" style="margin-top:20px"><div class="label">Git source error</div><pre>${activity.gitError}</pre></div>` : ''}
   `, '/activity'));
@@ -689,9 +723,15 @@ app.get('/context', (req, res) => {
       <div class="card"><div class="label">Projects known</div><div class="stat">${context.projectsCount}</div></div>
     </div>
     <div class="grid">
-      <div class="card">
-        <div class="label">Current session</div>
-        <div style="margin-top:10px; display:grid; gap:8px; font-size:14px;">
+      <div class="card stack">
+        <div class="timeline-head">
+          <div>
+            <div class="label">Current session</div>
+            <div style="font-size:18px; font-weight:700; margin-top:4px">Live operating picture</div>
+          </div>
+          <span class="pill ${context.statusOk ? 'ok' : 'warn'}">${context.statusOk ? 'Connected' : 'Missing'}</span>
+        </div>
+        <div class="kv">
           <div><strong>Time:</strong> ${status.time || '—'}</div>
           <div><strong>Model:</strong> ${status.model || '—'}</div>
           <div><strong>Session:</strong> ${status.session || '—'}</div>
@@ -700,22 +740,34 @@ app.get('/context', (req, res) => {
           <div><strong>Usage:</strong> ${status.usage || '—'}</div>
         </div>
       </div>
-      <div class="card">
-        <div class="label">Memory pointers</div>
-        <div style="margin-top:10px; display:grid; gap:8px; font-size:14px;">
+      <div class="card stack">
+        <div class="timeline-head">
+          <div>
+            <div class="label">Memory map</div>
+            <div style="font-size:18px; font-weight:700; margin-top:4px">Where context is coming from</div>
+          </div>
+          <span class="pill info">Memory</span>
+        </div>
+        <div class="kv">
           <div><strong>Latest journal:</strong> ${context.recentJournal ? context.recentJournal.name : '—'}</div>
           <div><strong>Journal path:</strong> <code>${context.recentJournal ? context.recentJournal.path : '—'}</code></div>
           <div><strong>Long-term memory:</strong> <code>${context.longTermMemoryPath}</code></div>
           <div><strong>Total journals:</strong> ${context.memory.files.length}</div>
         </div>
       </div>
-      <div class="card">
+      <div class="card stack">
         <div class="label">Likely current focus</div>
         <ul>${context.focusAreas.map((item) => `<li>${item}</li>`).join('')}</ul>
       </div>
-      <div class="card">
-        <div class="label">Active project signal</div>
-        <div style="margin-top:10px; display:grid; gap:8px; font-size:14px;">
+      <div class="card stack">
+        <div class="timeline-head">
+          <div>
+            <div class="label">Active project signal</div>
+            <div style="font-size:18px; font-weight:700; margin-top:4px">Most recently touched project</div>
+          </div>
+          <span class="pill idle">Project</span>
+        </div>
+        <div class="kv">
           <div><strong>Most recent project:</strong> ${context.activeProject ? context.activeProject.name : 'None yet'}</div>
           <div><strong>Path:</strong> <code>${context.activeProject ? context.activeProject.path : '—'}</code></div>
           <div><strong>Description:</strong> ${context.activeProject ? context.activeProject.description : 'No project folders have been picked up yet.'}</div>
@@ -723,17 +775,35 @@ app.get('/context', (req, res) => {
       </div>
     </div>
     <div class="grid">
-      <div class="panel">
-        <div class="label">Recent journal snippet</div>
+      <div class="panel stack">
+        <div class="timeline-head">
+          <div>
+            <div class="label">Recent journal snippet</div>
+            <div style="font-size:18px; font-weight:700; margin-top:4px">Fresh short-term context</div>
+          </div>
+          <span class="pill info">Journal</span>
+        </div>
         <pre>${context.journalSnippet || 'No recent journal snippet available yet.'}</pre>
       </div>
-      <div class="panel">
-        <div class="label">Long-term memory snippet</div>
+      <div class="panel stack">
+        <div class="timeline-head">
+          <div>
+            <div class="label">Long-term memory snippet</div>
+            <div style="font-size:18px; font-weight:700; margin-top:4px">Stable context and agreements</div>
+          </div>
+          <span class="pill ok">Memory</span>
+        </div>
         <pre>${context.longTermSnippet || 'No long-term memory snippet available yet.'}</pre>
       </div>
     </div>
-    <div class="panel">
-      <div class="label">Raw OpenClaw status</div>
+    <div class="panel stack">
+      <div class="timeline-head">
+        <div>
+          <div class="label">Raw OpenClaw status</div>
+          <div style="font-size:18px; font-weight:700; margin-top:4px">Underlying source output</div>
+        </div>
+        <span class="pill idle">Raw</span>
+      </div>
       <pre>${context.rawStatus || 'No status output available.'}</pre>
     </div>
   `, '/context'));
