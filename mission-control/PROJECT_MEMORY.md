@@ -18,6 +18,7 @@ It is effectively the home base for staying on top of Gizmo’s activity and vis
 - `/` — overview dashboard
 - `/schedule` — improved live scheduled task view based on `openclaw cron list`
 - `/projects` — project discovery view based on folders under `~/gizmos_projects`
+- `/skills` — skills discovery view based on the OpenClaw skills directory
 - `/context` — Gizmo context/session visibility page
 - `/memory` — journal and long-term memory file browser scaffold
 - `/docs` — recent docs/artifacts browser across this repo and the OpenClaw workspace

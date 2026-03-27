@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 
@@ -8,6 +9,7 @@ const PORT = process.env.PORT || 3187;
 const REPO_ROOT = '/Users/maxfergie/gizmos-ground';
 const OPENCLAW_WORKSPACE = '/Users/maxfergie/.openclaw/workspace';
 const PROJECTS_ROOT = '/Users/maxfergie/gizmos_projects';
+const OPENCLAW_SKILLS_ROOT = path.join(os.homedir(), '.nvm/versions/node/v22.16.0/lib/node_modules/openclaw/skills');
 
 function run(command) {
   return execSync(command, {
@@ -193,6 +195,54 @@ function getContextData() {
   };
 }
 
+function getSkillsData() {
+  let skills = [];
+  try {
+    const entries = fs.readdirSync(OPENCLAW_SKILLS_ROOT, { withFileTypes: true });
+    skills = entries
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+      .map((entry) => {
+        const skillDir = path.join(OPENCLAW_SKILLS_ROOT, entry.name);
+        const skillMdPath = path.join(skillDir, 'SKILL.md');
+        let summary = 'No summary available yet.';
+        let hasSkillDoc = false;
+
+        if (fs.existsSync(skillMdPath)) {
+          hasSkillDoc = true;
+          try {
+            const text = fs.readFileSync(skillMdPath, 'utf8');
+            const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+            const firstRealLine = lines.find((line) => !line.startsWith('#'));
+            if (firstRealLine) summary = firstRealLine;
+          } catch {}
+        }
+
+        return {
+          name: entry.name,
+          path: skillDir,
+          skillMdPath,
+          hasSkillDoc,
+          summary,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  } catch (error) {
+    return {
+      root: OPENCLAW_SKILLS_ROOT,
+      count: 0,
+      skills: [],
+      error: error.message || String(error),
+    };
+  }
+
+  return {
+    root: OPENCLAW_SKILLS_ROOT,
+    count: skills.length,
+    skills,
+    error: null,
+  };
+}
+
 function summariseProject(dirent) {
   const projectPath = path.join(PROJECTS_ROOT, dirent.name);
   const readmePath = path.join(projectPath, 'README.md');
@@ -332,6 +382,7 @@ function layout(title, body, active = '/') {
           <a href="/" class="${active === '/' ? 'active' : ''}">Overview</a>
           <a href="/schedule" class="${active === '/schedule' ? 'active' : ''}">Schedule</a>
           <a href="/projects" class="${active === '/projects' ? 'active' : ''}">Projects</a>
+          <a href="/skills" class="${active === '/skills' ? 'active' : ''}">Skills</a>
           <a href="/context" class="${active === '/context' ? 'active' : ''}">Context</a>
           <a href="/memory" class="${active === '/memory' ? 'active' : ''}">Memory</a>
           <a href="/docs" class="${active === '/docs' ? 'active' : ''}">Docs</a>
@@ -350,6 +401,7 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/schedule', (req, res) => res.json(getScheduleData()));
 app.get('/api/projects', (req, res) => res.json(getProjectsData()));
+app.get('/api/skills', (req, res) => res.json(getSkillsData()));
 app.get('/api/context', (req, res) => res.json(getContextData()));
 app.get('/api/memory', (req, res) => res.json(getMemoryFiles()));
 app.get('/api/docs', (req, res) => res.json(getDocsData()));
@@ -497,6 +549,31 @@ app.get('/projects', (req, res) => {
     ${projects.empty ? emptyState : `<div class="grid">${cards}</div>`}
     ${projects.error ? `<div class="panel" style="margin-top:20px"><div class="label">Error</div><pre>${projects.error}</pre></div>` : ''}
   `, '/projects'));
+});
+
+app.get('/skills', (req, res) => {
+  const skills = getSkillsData();
+  const cards = skills.skills.map((skill) => `
+    <div class="card">
+      <div class="label">${skill.hasSkillDoc ? 'Documented skill' : 'Skill folder'}</div>
+      <div class="stat" style="font-size:24px">${skill.name}</div>
+      <div class="muted" style="margin-top:8px">${skill.summary}</div>
+      <div style="margin-top:14px; display:grid; gap:8px; font-size:14px;">
+        <div><strong>Path:</strong> <code>${skill.path}</code></div>
+        <div><strong>SKILL.md:</strong> ${skill.hasSkillDoc ? 'Yes' : 'No'}</div>
+        <div><strong>Doc path:</strong> <code>${skill.skillMdPath}</code></div>
+      </div>
+    </div>`).join('');
+
+  res.send(layout('Mission Control — Skills', `
+    <div class="top"><div><h1>Skills</h1><div class="muted">Skills currently available to Gizmo via the OpenClaw skills directory.</div></div></div>
+    <div class="grid">
+      <div class="card"><div class="label">Skills available</div><div class="stat">${skills.count}</div></div>
+      <div class="card"><div class="label">Skills root</div><div class="stat" style="font-size:16px; line-height:1.4">${skills.root}</div></div>
+    </div>
+    <div class="grid">${cards}</div>
+    ${skills.error ? `<div class="panel" style="margin-top:20px"><div class="label">Error</div><pre>${skills.error}</pre></div>` : ''}
+  `, '/skills'));
 });
 
 app.get('/context', (req, res) => {
