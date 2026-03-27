@@ -23,6 +23,7 @@ Then open:
 - `/schedule` — live cron and scheduled tasks
 - `/projects` — projects discovered under `~/gizmos_projects`
 - `/skills` — available OpenClaw skills visible to Gizmo
+- `/activity` — recent commits, journals, projects, and job signals
 - `/context` — Gizmo session/context visibility
 - `/memory` — journal + long-term memory scaffold
 - `/docs` — docs/artifacts browser scaffold

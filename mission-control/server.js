@@ -243,6 +243,63 @@ function getSkillsData() {
   };
 }
 
+function getRecentActivityData() {
+  const gitLog = safeRun("git log --date=iso --pretty=format:'%h|%ad|%s' -n 12");
+  const memory = getMemoryFiles();
+  const projects = getProjectsData();
+  const schedule = getScheduleData();
+
+  const commits = gitLog.ok
+    ? gitLog.stdout.split(/\r?\n/).filter(Boolean).map((line) => {
+        const [hash, date, ...subjectParts] = line.split('|');
+        return {
+          hash,
+          date,
+          subject: subjectParts.join('|'),
+          type: 'commit',
+        };
+      })
+    : [];
+
+  const journals = memory.files.slice(0, 8).map((file) => ({
+    type: 'journal',
+    label: file.name,
+    date: file.modifiedAt,
+    subject: `Journal updated: ${file.name}`,
+    path: file.path,
+  }));
+
+  const projectItems = projects.projects.slice(0, 8).map((project) => ({
+    type: 'project',
+    label: project.name,
+    date: project.modifiedAt,
+    subject: `Project touched: ${project.name}`,
+    path: project.path,
+  }));
+
+  const scheduleItems = schedule.jobs.slice(0, 8).map((job) => ({
+    type: 'job',
+    label: job.name || job.id,
+    date: job.last || job.next || 'Unknown',
+    subject: `Scheduled job: ${job.name || job.id} (${job.status})`,
+    status: job.status,
+  }));
+
+  const items = [...commits, ...journals, ...projectItems, ...scheduleItems]
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) * -1)
+    .slice(0, 20);
+
+  return {
+    items,
+    commitsCount: commits.length,
+    journalsCount: memory.files.length,
+    projectsCount: projects.count,
+    jobsCount: schedule.jobs.length,
+    gitOk: gitLog.ok,
+    gitError: gitLog.ok ? null : gitLog.error,
+  };
+}
+
 function summariseProject(dirent) {
   const projectPath = path.join(PROJECTS_ROOT, dirent.name);
   const readmePath = path.join(projectPath, 'README.md');
@@ -383,6 +440,7 @@ function layout(title, body, active = '/') {
           <a href="/schedule" class="${active === '/schedule' ? 'active' : ''}">Schedule</a>
           <a href="/projects" class="${active === '/projects' ? 'active' : ''}">Projects</a>
           <a href="/skills" class="${active === '/skills' ? 'active' : ''}">Skills</a>
+          <a href="/activity" class="${active === '/activity' ? 'active' : ''}">Activity</a>
           <a href="/context" class="${active === '/context' ? 'active' : ''}">Context</a>
           <a href="/memory" class="${active === '/memory' ? 'active' : ''}">Memory</a>
           <a href="/docs" class="${active === '/docs' ? 'active' : ''}">Docs</a>
@@ -402,6 +460,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/schedule', (req, res) => res.json(getScheduleData()));
 app.get('/api/projects', (req, res) => res.json(getProjectsData()));
 app.get('/api/skills', (req, res) => res.json(getSkillsData()));
+app.get('/api/activity', (req, res) => res.json(getRecentActivityData()));
 app.get('/api/context', (req, res) => res.json(getContextData()));
 app.get('/api/memory', (req, res) => res.json(getMemoryFiles()));
 app.get('/api/docs', (req, res) => res.json(getDocsData()));
@@ -574,6 +633,30 @@ app.get('/skills', (req, res) => {
     <div class="grid">${cards}</div>
     ${skills.error ? `<div class="panel" style="margin-top:20px"><div class="label">Error</div><pre>${skills.error}</pre></div>` : ''}
   `, '/skills'));
+});
+
+app.get('/activity', (req, res) => {
+  const activity = getRecentActivityData();
+  const rows = activity.items.length
+    ? activity.items.map((item) => `<tr><td>${item.type}</td><td>${item.subject}</td><td>${item.date || '—'}</td><td><code>${item.hash || item.path || item.label || '—'}</code></td></tr>`).join('')
+    : '<tr><td colspan="4">No recent activity found yet.</td></tr>';
+
+  res.send(layout('Mission Control — Activity', `
+    <div class="top"><div><h1>Recent Activity</h1><div class="muted">A stitched-together feed of recent commits, journals, projects, and scheduled work.</div></div></div>
+    <div class="grid">
+      <div class="card"><div class="label">Recent items</div><div class="stat">${activity.items.length}</div></div>
+      <div class="card"><div class="label">Commits sampled</div><div class="stat">${activity.commitsCount}</div></div>
+      <div class="card"><div class="label">Journals known</div><div class="stat">${activity.journalsCount}</div></div>
+      <div class="card"><div class="label">Projects known</div><div class="stat">${activity.projectsCount}</div></div>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Type</th><th>Event</th><th>When</th><th>Ref</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${activity.gitError ? `<div class="panel" style="margin-top:20px"><div class="label">Git source error</div><pre>${activity.gitError}</pre></div>` : ''}
+  `, '/activity'));
 });
 
 app.get('/context', (req, res) => {
