@@ -1,0 +1,24 @@
+{
+  "name": "gizmos-ground",
+  "version": "1.0.0",
+  "description": "Home base for Gizmo's custom tooling, dashboards, and operator surfaces.",
+  "main": "mission-control/server.js",
+  "scripts": {
+    "start": "node mission-control/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MFergie121/gizmos-ground.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MFergie121/gizmos-ground/issues"
+  },
+  "homepage": "https://github.com/MFergie121/gizmos-ground#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

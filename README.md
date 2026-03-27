@@ -2,22 +2,36 @@
 
 Home base for Gizmo's custom tooling, dashboards, and operator surfaces.
 
-## Current modules
+## Mission Control
 
-- `mission-control/calendar/` — scheduled tasks and cron showcase
+Mission Control now runs as a **local dynamic web app**.
 
-## Schedule module
-
-Build the current schedule dashboard:
+### Start it
 
 ```bash
-node mission-control/scripts/build-calendar.js
+cd ~/gizmos-ground
+node mission-control/server.js
 ```
 
 Then open:
 
-- `mission-control/calendar/index.html`
+- `http://127.0.0.1:3187`
+
+### Current modules
+
+- `/` — overview dashboard
+- `/schedule` — live cron and scheduled tasks
+- `/memory` — journal + long-term memory scaffold
+- `/docs` — docs/artifacts browser scaffold
+- `/team` — active team/agent view scaffold
+
+## Stack
+
+- Node
+- Express
+- Local filesystem + OpenClaw CLI as the first data sources
 
 ## Notes
 
-This repository is intended to grow incrementally as Gizmo and Max add new Mission Control capabilities such as memory browsing, docs/artifacts, and team visualisation.
+This repo is the single source of truth for Mission Control.
+Static generated dashboard files are now transitional only.
