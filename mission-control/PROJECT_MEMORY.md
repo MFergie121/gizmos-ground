@@ -17,6 +17,7 @@ It is effectively the home base for staying on top of Gizmo’s activity and vis
 ### Views
 - `/` — overview dashboard
 - `/schedule` — live scheduled task view based on `openclaw cron list`
+- `/projects` — project discovery view based on folders under `~/gizmos_projects`
 - `/memory` — journal and long-term memory file browser scaffold
 - `/docs` — recent docs/artifacts browser across this repo and the OpenClaw workspace
 - `/team` — simple team/agent view backed by `openclaw status --all`
@@ -39,7 +40,8 @@ The confirmed project direction is:
 2. the old static workplace was just v1 and should be ignored going forward,
 3. the dashboard should help Max understand Gizmo’s activity, context, and assistance footprint,
 4. the next priorities are showcasing skills Max gives Gizmo,
-5. after that, continue brainstorming and layering on new useful features.
+5. add a Projects section that discovers active Gizmo projects from `~/gizmos_projects`,
+6. after that, continue brainstorming and layering on new useful features.
 
 ## Practical summary
 

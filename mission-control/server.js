@@ -7,6 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3187;
 const REPO_ROOT = '/Users/maxfergie/gizmos-ground';
 const OPENCLAW_WORKSPACE = '/Users/maxfergie/.openclaw/workspace';
+const PROJECTS_ROOT = '/Users/maxfergie/gizmos_projects';
 
 function run(command) {
   return execSync(command, {
@@ -153,6 +154,88 @@ function getTeamData() {
   };
 }
 
+function summariseProject(dirent) {
+  const projectPath = path.join(PROJECTS_ROOT, dirent.name);
+  const readmePath = path.join(projectPath, 'README.md');
+  const memoryPath = path.join(projectPath, 'PROJECT_MEMORY.md');
+  const packageJsonPath = path.join(projectPath, 'package.json');
+  const gitPath = path.join(projectPath, '.git');
+
+  let stat;
+  try {
+    stat = fs.statSync(projectPath);
+  } catch {
+    return null;
+  }
+
+  let description = 'No project summary yet.';
+  if (fs.existsSync(memoryPath)) {
+    try {
+      const text = fs.readFileSync(memoryPath, 'utf8').trim();
+      if (text) description = text.split(/\r?\n/).find(Boolean) || description;
+    } catch {}
+  } else if (fs.existsSync(readmePath)) {
+    try {
+      const text = fs.readFileSync(readmePath, 'utf8').trim();
+      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const firstRealLine = lines.find((line) => !line.startsWith('#'));
+      if (firstRealLine) description = firstRealLine;
+    } catch {}
+  }
+
+  let packageName = null;
+  try {
+    if (fs.existsSync(packageJsonPath)) {
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      packageName = pkg.name || null;
+      if (pkg.description) description = pkg.description;
+    }
+  } catch {}
+
+  return {
+    name: dirent.name,
+    packageName,
+    path: projectPath,
+    modifiedAt: stat.mtime.toISOString(),
+    hasReadme: fs.existsSync(readmePath),
+    hasProjectMemory: fs.existsSync(memoryPath),
+    isGitRepo: fs.existsSync(gitPath),
+    description,
+  };
+}
+
+function getProjectsData() {
+  try {
+    fs.mkdirSync(PROJECTS_ROOT, { recursive: true });
+  } catch {}
+
+  let projects = [];
+  try {
+    const entries = fs.readdirSync(PROJECTS_ROOT, { withFileTypes: true });
+    projects = entries
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+      .map(summariseProject)
+      .filter(Boolean)
+      .sort((a, b) => (a.modifiedAt < b.modifiedAt ? 1 : -1));
+  } catch (error) {
+    return {
+      root: PROJECTS_ROOT,
+      projects: [],
+      count: 0,
+      empty: true,
+      error: error.message || String(error),
+    };
+  }
+
+  return {
+    root: PROJECTS_ROOT,
+    projects,
+    count: projects.length,
+    empty: projects.length === 0,
+    error: null,
+  };
+}
+
 function layout(title, body, active = '/') {
   return `<!doctype html>
   <html lang="en">
@@ -209,6 +292,7 @@ function layout(title, body, active = '/') {
         <nav class="nav">
           <a href="/" class="${active === '/' ? 'active' : ''}">Overview</a>
           <a href="/schedule" class="${active === '/schedule' ? 'active' : ''}">Schedule</a>
+          <a href="/projects" class="${active === '/projects' ? 'active' : ''}">Projects</a>
           <a href="/memory" class="${active === '/memory' ? 'active' : ''}">Memory</a>
           <a href="/docs" class="${active === '/docs' ? 'active' : ''}">Docs</a>
           <a href="/team" class="${active === '/team' ? 'active' : ''}">Team</a>
@@ -225,12 +309,14 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/api/schedule', (req, res) => res.json(getScheduleData()));
+app.get('/api/projects', (req, res) => res.json(getProjectsData()));
 app.get('/api/memory', (req, res) => res.json(getMemoryFiles()));
 app.get('/api/docs', (req, res) => res.json(getDocsData()));
 app.get('/api/team', (req, res) => res.json(getTeamData()));
 
 app.get('/', (req, res) => {
   const schedule = getScheduleData();
+  const projects = getProjectsData();
   const memory = getMemoryFiles();
   const docs = getDocsData();
   const team = getTeamData();
@@ -244,12 +330,14 @@ app.get('/', (req, res) => {
     </div>
     <div class="grid">
       <div class="card"><div class="label">Scheduled jobs</div><div class="stat">${schedule.jobs.length}</div></div>
+      <div class="card"><div class="label">Projects tracked</div><div class="stat">${projects.count}</div></div>
       <div class="card"><div class="label">Journal entries</div><div class="stat">${memory.files.length}</div></div>
       <div class="card"><div class="label">Recent docs/artifacts tracked</div><div class="stat">${docs.length}</div></div>
       <div class="card"><div class="label">Agents visualised</div><div class="stat">${team.agents.length}</div></div>
     </div>
     <div class="grid">
-      <div class="card"><div class="label">Next step</div><div style="margin-top:8px">Use the left nav to inspect live schedule, memory, docs, and team views.</div></div>
+      <div class="card"><div class="label">Next step</div><div style="margin-top:8px">Use the left nav to inspect live schedule, projects, memory, docs, and team views.</div></div>
+      <div class="card"><div class="label">Projects root</div><div style="margin-top:8px"><code>${projects.root}</code></div></div>
       <div class="card"><div class="label">Backend</div><div style="margin-top:8px">Node + Express, local only, fed by OpenClaw + filesystem state.</div></div>
     </div>
   `, '/'));
@@ -296,6 +384,52 @@ app.get('/schedule', (req, res) => {
       <pre>${schedule.raw || schedule.error || 'No raw output available.'}</pre>
     </div>
   `, '/schedule'));
+});
+
+app.get('/projects', (req, res) => {
+  const projects = getProjectsData();
+  const cards = projects.projects.map((project) => `
+    <div class="card">
+      <div class="label">${project.isGitRepo ? 'Git project' : 'Project folder'}</div>
+      <div class="stat" style="font-size:24px">${project.name}</div>
+      <div class="muted" style="margin-top:8px">${project.description}</div>
+      <div style="margin-top:14px; display:grid; gap:8px; font-size:14px;">
+        <div><strong>Path:</strong> <code>${project.path}</code></div>
+        <div><strong>Package:</strong> ${project.packageName || '—'}</div>
+        <div><strong>README:</strong> ${project.hasReadme ? 'Yes' : 'No'}</div>
+        <div><strong>Project memory:</strong> ${project.hasProjectMemory ? 'Yes' : 'No'}</div>
+        <div><strong>Last modified:</strong> ${project.modifiedAt}</div>
+      </div>
+    </div>`).join('');
+
+  const emptyState = `
+    <div class="panel">
+      <div class="label">Proof of concept</div>
+      <h2 style="margin-top:10px">No projects yet</h2>
+      <div class="muted" style="margin-top:8px">
+        Mission Control is now watching <code>${projects.root}</code> for project folders.
+        When Gizmo starts working on projects there, they’ll appear here automatically.
+      </div>
+      <div style="margin-top:16px">
+        <strong>Expected shape:</strong>
+        <ul>
+          <li>Each project lives in its own folder under <code>${projects.root}</code></li>
+          <li>Optional <code>README.md</code> for project summary</li>
+          <li>Optional <code>PROJECT_MEMORY.md</code> for Gizmo-specific context</li>
+          <li>Optional git repo and <code>package.json</code> metadata</li>
+        </ul>
+      </div>
+    </div>`;
+
+  res.send(layout('Mission Control — Projects', `
+    <div class="top"><div><h1>Projects</h1><div class="muted">Projects Gizmo is working on under <code>${projects.root}</code>.</div></div></div>
+    <div class="grid">
+      <div class="card"><div class="label">Projects tracked</div><div class="stat">${projects.count}</div></div>
+      <div class="card"><div class="label">Projects root</div><div class="stat" style="font-size:16px; line-height:1.4">${projects.root}</div></div>
+    </div>
+    ${projects.empty ? emptyState : `<div class="grid">${cards}</div>`}
+    ${projects.error ? `<div class="panel" style="margin-top:20px"><div class="label">Error</div><pre>${projects.error}</pre></div>` : ''}
+  `, '/projects'));
 });
 
 app.get('/memory', (req, res) => {
