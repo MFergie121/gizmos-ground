@@ -22,6 +22,7 @@ Then open:
 - `/` — overview dashboard
 - `/schedule` — live cron and scheduled tasks
 - `/projects` — projects discovered under `~/gizmos_projects`
+- `/context` — Gizmo session/context visibility
 - `/memory` — journal + long-term memory scaffold
 - `/docs` — docs/artifacts browser scaffold
 - `/team` — active team/agent view scaffold

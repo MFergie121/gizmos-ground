@@ -154,6 +154,45 @@ function getTeamData() {
   };
 }
 
+function parseSessionStatus(text) {
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const getLine = (prefix) => lines.find((line) => line.startsWith(prefix)) || null;
+
+  return {
+    time: getLine('🕒 Time:')?.replace('🕒 Time:', '').trim() || null,
+    model: getLine('🧠 Model:')?.replace('🧠 Model:', '').trim() || null,
+    usage: getLine('📊 Usage:')?.replace('📊 Usage:', '').trim() || null,
+    session: getLine('🧵 Session:')?.replace('🧵 Session:', '').trim() || null,
+    runtime: getLine('⚙️ Runtime:')?.replace('⚙️ Runtime:', '').trim() || null,
+    activation: getLine('👥 Activation:')?.replace('👥 Activation:', '').trim() || null,
+  };
+}
+
+function getContextData() {
+  const status = safeRun('openclaw status');
+  const memory = getMemoryFiles();
+  const projects = getProjectsData();
+  const recentJournal = memory.files[0] || null;
+  const activeProject = projects.projects[0] || null;
+
+  return {
+    statusOk: status.ok,
+    rawStatus: status.ok ? status.stdout : status.error,
+    parsedStatus: status.ok ? parseSessionStatus(status.stdout) : null,
+    memory,
+    activeProject,
+    projectsCount: projects.count,
+    longTermMemoryPath: memory.longTermPath,
+    recentJournal,
+    focusAreas: [
+      'Mission Control development',
+      'Memory and journal upkeep',
+      'Discord workflows',
+      'Skills and operator tooling',
+    ],
+  };
+}
+
 function summariseProject(dirent) {
   const projectPath = path.join(PROJECTS_ROOT, dirent.name);
   const readmePath = path.join(projectPath, 'README.md');
@@ -293,6 +332,7 @@ function layout(title, body, active = '/') {
           <a href="/" class="${active === '/' ? 'active' : ''}">Overview</a>
           <a href="/schedule" class="${active === '/schedule' ? 'active' : ''}">Schedule</a>
           <a href="/projects" class="${active === '/projects' ? 'active' : ''}">Projects</a>
+          <a href="/context" class="${active === '/context' ? 'active' : ''}">Context</a>
           <a href="/memory" class="${active === '/memory' ? 'active' : ''}">Memory</a>
           <a href="/docs" class="${active === '/docs' ? 'active' : ''}">Docs</a>
           <a href="/team" class="${active === '/team' ? 'active' : ''}">Team</a>
@@ -310,6 +350,7 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/schedule', (req, res) => res.json(getScheduleData()));
 app.get('/api/projects', (req, res) => res.json(getProjectsData()));
+app.get('/api/context', (req, res) => res.json(getContextData()));
 app.get('/api/memory', (req, res) => res.json(getMemoryFiles()));
 app.get('/api/docs', (req, res) => res.json(getDocsData()));
 app.get('/api/team', (req, res) => res.json(getTeamData()));
@@ -317,6 +358,7 @@ app.get('/api/team', (req, res) => res.json(getTeamData()));
 app.get('/', (req, res) => {
   const schedule = getScheduleData();
   const projects = getProjectsData();
+  const context = getContextData();
   const memory = getMemoryFiles();
   const docs = getDocsData();
   const team = getTeamData();
@@ -332,11 +374,12 @@ app.get('/', (req, res) => {
       <div class="card"><div class="label">Scheduled jobs</div><div class="stat">${schedule.jobs.length}</div></div>
       <div class="card"><div class="label">Projects tracked</div><div class="stat">${projects.count}</div></div>
       <div class="card"><div class="label">Journal entries</div><div class="stat">${memory.files.length}</div></div>
+      <div class="card"><div class="label">Context signal</div><div class="stat">${context.recentJournal ? 'Live' : 'Cold'}</div></div>
       <div class="card"><div class="label">Recent docs/artifacts tracked</div><div class="stat">${docs.length}</div></div>
       <div class="card"><div class="label">Agents visualised</div><div class="stat">${team.agents.length}</div></div>
     </div>
     <div class="grid">
-      <div class="card"><div class="label">Next step</div><div style="margin-top:8px">Use the left nav to inspect live schedule, projects, memory, docs, and team views.</div></div>
+      <div class="card"><div class="label">Next step</div><div style="margin-top:8px">Use the left nav to inspect live schedule, projects, context, memory, docs, and team views.</div></div>
       <div class="card"><div class="label">Projects root</div><div style="margin-top:8px"><code>${projects.root}</code></div></div>
       <div class="card"><div class="label">Backend</div><div style="margin-top:8px">Node + Express, local only, fed by OpenClaw + filesystem state.</div></div>
     </div>
@@ -345,20 +388,24 @@ app.get('/', (req, res) => {
 
 app.get('/schedule', (req, res) => {
   const schedule = getScheduleData();
-  const rows = schedule.jobs.length
-    ? schedule.jobs.map((job) => `
+  const okJobs = schedule.jobs.filter((j) => j.status === 'ok');
+  const idleJobs = schedule.jobs.filter((j) => j.status === 'idle');
+  const otherJobs = schedule.jobs.filter((j) => !['ok', 'idle'].includes(j.status));
+
+  const groupedRows = (jobs, emptyText) => jobs.length
+    ? jobs.map((job) => `
       <tr>
         <td><code>${job.id}</code></td>
-        <td>${job.name}</td>
-        <td>${job.schedule}</td>
-        <td>${job.next}</td>
-        <td>${job.last}</td>
+        <td>${job.name || '—'}</td>
+        <td>${job.schedule || '—'}</td>
+        <td>${job.next || '—'}</td>
+        <td>${job.last || '—'}</td>
         <td><span class="pill ${job.status.toLowerCase()}">${job.status}</span></td>
-        <td>${job.target}</td>
-        <td>${job.agentId}</td>
-        <td>${job.model}</td>
+        <td>${job.target || '—'}</td>
+        <td>${job.agentId || '—'}</td>
+        <td>${job.model || '—'}</td>
       </tr>`).join('')
-    : '<tr><td colspan="9">No jobs found. If this is wrong, the cron parser is being a little goblin and we’ll fix it.</td></tr>';
+    : `<tr><td colspan="9">${emptyText}</td></tr>`;
 
   res.send(layout('Mission Control — Schedule', `
     <div class="top">
@@ -370,13 +417,33 @@ app.get('/schedule', (req, res) => {
     </div>
     <div class="grid">
       <div class="card"><div class="label">Total jobs</div><div class="stat">${schedule.jobs.length}</div></div>
-      <div class="card"><div class="label">OK</div><div class="stat">${schedule.jobs.filter(j => j.status === 'ok').length}</div></div>
-      <div class="card"><div class="label">Idle</div><div class="stat">${schedule.jobs.filter(j => j.status === 'idle').length}</div></div>
+      <div class="card"><div class="label">OK</div><div class="stat">${okJobs.length}</div></div>
+      <div class="card"><div class="label">Idle</div><div class="stat">${idleJobs.length}</div></div>
+      <div class="card"><div class="label">Needs attention</div><div class="stat">${otherJobs.length}</div></div>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="label">What this page tells you</div><div style="margin-top:8px">What jobs exist, what state they’re in, and whether Gizmo’s automation is sleeping peacefully or plotting.</div></div>
+      <div class="card"><div class="label">Fast read</div><div style="margin-top:8px">If “Needs attention” is non-zero, inspect the lower tables first. That’s where the gremlins live.</div></div>
     </div>
     <div class="panel">
+      <div class="label">Jobs needing attention</div>
       <table>
         <thead><tr><th>ID</th><th>Name</th><th>Schedule</th><th>Next</th><th>Last</th><th>Status</th><th>Target</th><th>Agent</th><th>Model</th></tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${groupedRows(otherJobs, 'No jobs currently need attention. Miraculous.')}</tbody>
+      </table>
+    </div>
+    <div class="panel" style="margin-top:20px">
+      <div class="label">Healthy jobs</div>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Schedule</th><th>Next</th><th>Last</th><th>Status</th><th>Target</th><th>Agent</th><th>Model</th></tr></thead>
+        <tbody>${groupedRows(okJobs, 'No healthy jobs found yet.')}</tbody>
+      </table>
+    </div>
+    <div class="panel" style="margin-top:20px">
+      <div class="label">Idle jobs</div>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Schedule</th><th>Next</th><th>Last</th><th>Status</th><th>Target</th><th>Agent</th><th>Model</th></tr></thead>
+        <tbody>${groupedRows(idleJobs, 'No idle jobs right now.')}</tbody>
       </table>
     </div>
     <div class="panel" style="margin-top:20px">
@@ -430,6 +497,59 @@ app.get('/projects', (req, res) => {
     ${projects.empty ? emptyState : `<div class="grid">${cards}</div>`}
     ${projects.error ? `<div class="panel" style="margin-top:20px"><div class="label">Error</div><pre>${projects.error}</pre></div>` : ''}
   `, '/projects'));
+});
+
+app.get('/context', (req, res) => {
+  const context = getContextData();
+  const status = context.parsedStatus || {};
+
+  res.send(layout('Mission Control — Context', `
+    <div class="top"><div><h1>Context</h1><div class="muted">What Gizmo likely knows, is focused on, and is currently carrying around in its little metal head.</div></div></div>
+    <div class="grid">
+      <div class="card"><div class="label">Session state</div><div class="stat" style="font-size:22px">${context.statusOk ? 'Live' : 'Unavailable'}</div></div>
+      <div class="card"><div class="label">Recent journal</div><div class="stat" style="font-size:18px">${context.recentJournal ? context.recentJournal.name : 'None'}</div></div>
+      <div class="card"><div class="label">Long-term memory</div><div class="stat" style="font-size:18px">${context.memory.hasLongTerm ? 'Loaded' : 'Missing'}</div></div>
+      <div class="card"><div class="label">Projects known</div><div class="stat">${context.projectsCount}</div></div>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="label">Current session</div>
+        <div style="margin-top:10px; display:grid; gap:8px; font-size:14px;">
+          <div><strong>Time:</strong> ${status.time || '—'}</div>
+          <div><strong>Model:</strong> ${status.model || '—'}</div>
+          <div><strong>Session:</strong> ${status.session || '—'}</div>
+          <div><strong>Runtime:</strong> ${status.runtime || '—'}</div>
+          <div><strong>Activation:</strong> ${status.activation || '—'}</div>
+          <div><strong>Usage:</strong> ${status.usage || '—'}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Memory pointers</div>
+        <div style="margin-top:10px; display:grid; gap:8px; font-size:14px;">
+          <div><strong>Latest journal:</strong> ${context.recentJournal ? context.recentJournal.name : '—'}</div>
+          <div><strong>Journal path:</strong> <code>${context.recentJournal ? context.recentJournal.path : '—'}</code></div>
+          <div><strong>Long-term memory:</strong> <code>${context.longTermMemoryPath}</code></div>
+          <div><strong>Total journals:</strong> ${context.memory.files.length}</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">Likely current focus</div>
+        <ul>${context.focusAreas.map((item) => `<li>${item}</li>`).join('')}</ul>
+      </div>
+      <div class="card">
+        <div class="label">Active project signal</div>
+        <div style="margin-top:10px; display:grid; gap:8px; font-size:14px;">
+          <div><strong>Most recent project:</strong> ${context.activeProject ? context.activeProject.name : 'None yet'}</div>
+          <div><strong>Path:</strong> <code>${context.activeProject ? context.activeProject.path : '—'}</code></div>
+          <div><strong>Description:</strong> ${context.activeProject ? context.activeProject.description : 'No project folders have been picked up yet.'}</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="label">Raw OpenClaw status</div>
+      <pre>${context.rawStatus || 'No status output available.'}</pre>
+    </div>
+  `, '/context'));
 });
 
 app.get('/memory', (req, res) => {
