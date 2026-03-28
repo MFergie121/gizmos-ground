@@ -152,6 +152,105 @@ function getTeamData() {
           'Research and automation',
         ],
       },
+      {
+        name: 'Frodo Orchestrator',
+        role: 'Workflow owner',
+        responsibilities: [
+          'Delegation and sequencing',
+          'Role selection and handoffs',
+          'Review gate coordination',
+        ],
+      },
+      {
+        name: 'Bilbo Product Lead',
+        role: 'Product',
+        responsibilities: [
+          'Problem framing',
+          'MVP scoping',
+          'Prioritisation',
+        ],
+      },
+      {
+        name: 'Peregrin Tech Lead',
+        role: 'Engineering leadership',
+        responsibilities: [
+          'Architecture',
+          'Implementation planning',
+          'Technical tradeoffs',
+        ],
+      },
+      {
+        name: 'Rosie UI/UX Designer',
+        role: 'Design',
+        responsibilities: [
+          'Interaction design',
+          'Copy and flow review',
+          'Anti-slop polish',
+        ],
+      },
+      {
+        name: 'Merry Frontend Engineer',
+        role: 'Frontend',
+        responsibilities: [
+          'Component structure',
+          'Accessibility',
+          'User-facing implementation',
+        ],
+      },
+      {
+        name: 'Samwise Backend Engineer',
+        role: 'Backend',
+        responsibilities: [
+          'APIs and services',
+          'Jobs and integrations',
+          'Reliability',
+        ],
+      },
+      {
+        name: 'Hamfast Database Engineer',
+        role: 'Data',
+        responsibilities: [
+          'Schema design',
+          'Migrations and indexes',
+          'Data model quality',
+        ],
+      },
+      {
+        name: 'Primula QA Lead',
+        role: 'Quality assurance',
+        responsibilities: [
+          'Acceptance criteria',
+          'Test planning',
+          'Regression confidence',
+        ],
+      },
+      {
+        name: 'Fredegar Security Reviewer',
+        role: 'Security',
+        responsibilities: [
+          'Threat review',
+          'Permissions and secrets',
+          'OWASP-style checks',
+        ],
+      },
+      {
+        name: 'Odo Release Engineer',
+        role: 'Release',
+        responsibilities: [
+          'Rollout and rollback planning',
+          'Deployment readiness',
+          'Release sanity checks',
+        ],
+      },
+      {
+        name: 'Drogo Investigator / Retro Lead',
+        role: 'Investigation',
+        responsibilities: [
+          'Incident analysis',
+          'Debugging weirdness',
+          'Retros and process improvement',
+        ],
+      },
     ],
   };
 }
