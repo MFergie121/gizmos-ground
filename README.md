@@ -39,6 +39,28 @@ node mission-control/server.js
 
 - `http://127.0.0.1:3187`
 
+### Access it from another computer on your network
+
+By default the app binds to localhost only. To make it reachable from another computer on the same network, bind it to all interfaces:
+
+```bash
+cd ~/gizmos-ground
+HOST=0.0.0.0 PORT=3187 npm start
+```
+
+Then open it from your other machine using your laptop's local IP address:
+
+- `http://<your-laptop-local-ip>:3187`
+
+Example:
+
+- `http://192.168.1.23:3187`
+
+Notes:
+- both devices need to be on the same network
+- macOS firewall may prompt you to allow incoming connections for Node
+- if you want access outside your local network later, that should be done intentionally and with proper auth/reverse proxying rather than raw exposure
+
 ### What to expect
 
 - The app runs locally only

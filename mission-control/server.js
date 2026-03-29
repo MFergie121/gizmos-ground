@@ -6,6 +6,7 @@ const { execSync } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3187;
+const HOST = process.env.HOST || '127.0.0.1';
 const REPO_ROOT = '/Users/maxfergie/gizmos-ground';
 const OPENCLAW_WORKSPACE = '/Users/maxfergie/.openclaw/workspace';
 const PROJECTS_ROOT = '/Users/maxfergie/gizmos_projects';
@@ -333,12 +334,19 @@ function getSkillsData() {
           } catch {}
         }
 
+        const category = entry.name.startsWith('team-member-')
+          ? 'team-ops'
+          : ['product-lead', 'tech-lead', 'ui-ux-designer', 'frontend-engineer', 'backend-engineer', 'database-engineer', 'qa-lead', 'security-reviewer', 'release-engineer', 'investigator-retro-lead', 'gizmo-orchestrator'].includes(entry.name)
+            ? 'gizmo-team'
+            : 'general';
+
         return {
           name: entry.name,
           path: skillDir,
           skillMdPath,
           hasSkillDoc,
           summary,
+          category,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -507,31 +515,37 @@ function layout(title, body, active = '/') {
     <title>${title}</title>
     <style>
       :root {
-        --bg: #0b1220;
-        --panel: #111827;
-        --panel2: #1f2937;
-        --text: #e5e7eb;
-        --muted: #9ca3af;
-        --line: #374151;
+        --bg: #07111f;
+        --bg2: #0c1729;
+        --panel: rgba(15, 23, 42, 0.88);
+        --panel2: #162237;
+        --text: #e5eefc;
+        --muted: #9fb0c9;
+        --line: rgba(148, 163, 184, 0.18);
         --accent: #60a5fa;
+        --accent2: #a78bfa;
+        --gold: #fbbf24;
         --ok: #10b981;
         --warn: #f59e0b;
+        --danger: #f87171;
       }
       * { box-sizing: border-box; }
-      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: linear-gradient(180deg, #08101d 0%, var(--bg) 100%); color: var(--text); }
-      .app { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
-      .sidebar { border-right: 1px solid var(--line); background: rgba(17,24,39,0.96); padding: 24px 18px; }
-      .brand { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: radial-gradient(circle at top right, rgba(96,165,250,.14), transparent 28%), radial-gradient(circle at top left, rgba(167,139,250,.12), transparent 24%), linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%); color: var(--text); }
+      .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+      .sidebar { border-right: 1px solid var(--line); background: rgba(7,17,31,0.86); backdrop-filter: blur(12px); padding: 24px 18px; }
+      .brand { font-size: 22px; font-weight: 900; margin-bottom: 6px; display:flex; align-items:center; gap:10px; }
+      .brand-mark { width: 34px; height: 34px; display:inline-grid; place-items:center; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; box-shadow: 0 10px 30px rgba(96,165,250,.25); }
       .sub { color: var(--muted); font-size: 14px; margin-bottom: 22px; }
-      .nav a { display: block; color: var(--text); text-decoration: none; padding: 10px 12px; border-radius: 10px; margin-bottom: 6px; }
-      .nav a.active, .nav a:hover { background: rgba(96,165,250,0.14); color: #bfdbfe; }
-      .main { padding: 28px; }
+      .nav a { display: block; color: var(--text); text-decoration: none; padding: 11px 12px; border-radius: 12px; margin-bottom: 6px; border:1px solid transparent; transition: all .18s ease; }
+      .nav a.active, .nav a:hover { background: linear-gradient(90deg, rgba(96,165,250,0.18), rgba(167,139,250,0.14)); color: #dbeafe; border-color: rgba(96,165,250,.22); transform: translateX(2px); }
+      .main { padding: 30px; }
       .top { display:flex; justify-content:space-between; gap: 16px; align-items:end; flex-wrap:wrap; margin-bottom: 22px; }
       .top h1 { margin: 0; font-size: 34px; }
       .muted { color: var(--muted); }
       .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom: 20px; }
-      .card, .panel { background: rgba(17,24,39,0.92); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-      .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+      .card, .panel { background: var(--panel); border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow: 0 16px 40px rgba(0,0,0,0.24); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+      .card:hover, .panel:hover { transform: translateY(-2px); border-color: rgba(96,165,250,.26); box-shadow: 0 18px 44px rgba(0,0,0,0.28); }
+      .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .12em; }
       .stat { font-size: 30px; font-weight: 800; margin-top: 8px; }
       table { width:100%; border-collapse: collapse; font-size:14px; }
       th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align:left; vertical-align: top; }
@@ -541,6 +555,8 @@ function layout(title, body, active = '/') {
       .pill.idle { color:#e5e7eb; background:rgba(107,114,128,.15); }
       .pill.warn { color:#fde68a; background:rgba(245,158,11,.15); border-color:rgba(245,158,11,.35); }
       .pill.info { color:#bfdbfe; background:rgba(96,165,250,.15); border-color:rgba(96,165,250,.35); }
+      .pill.team { color:#f5d0fe; background:rgba(168,85,247,.16); border-color:rgba(168,85,247,.34); }
+      .pill.ops { color:#fde68a; background:rgba(251,191,36,.14); border-color:rgba(251,191,36,.34); }
       .stack { display:grid; gap:16px; }
       .kv { display:grid; gap:8px; font-size:14px; }
       .timeline { display:grid; gap:12px; }
@@ -556,8 +572,8 @@ function layout(title, body, active = '/') {
   <body>
     <div class="app">
       <aside class="sidebar">
-        <div class="brand">Gizmo Mission Control</div>
-        <div class="sub">Local operator dashboard for Max + Gizmo.</div>
+        <div class="brand"><span class="brand-mark">⚙️</span> Gizmo Mission Control</div>
+        <div class="sub">Operator dashboard for Max + Gizmo.</div>
         <nav class="nav">
           <a href="/" class="${active === '/' ? 'active' : ''}">Overview</a>
           <a href="/schedule" class="${active === '/schedule' ? 'active' : ''}">Schedule</a>
@@ -605,12 +621,12 @@ app.get('/', (req, res) => {
       <div class="muted">Now very much not a static HTML fossil.</div>
     </div>
     <div class="grid">
-      <div class="card"><div class="label">Scheduled jobs</div><div class="stat">${schedule.jobs.length}</div></div>
-      <div class="card"><div class="label">Projects tracked</div><div class="stat">${projects.count}</div></div>
-      <div class="card"><div class="label">Journal entries</div><div class="stat">${memory.files.length}</div></div>
-      <div class="card"><div class="label">Context signal</div><div class="stat">${context.recentJournal ? 'Live' : 'Cold'}</div></div>
-      <div class="card"><div class="label">Recent docs/artifacts tracked</div><div class="stat">${docs.length}</div></div>
-      <div class="card"><div class="label">Agents visualised</div><div class="stat">${team.agents.length}</div></div>
+      <div class="card"><div class="label">Scheduled jobs</div><div class="stat">${schedule.jobs.length}</div><div class="muted" style="margin-top:8px">Automation across the system.</div></div>
+      <div class="card"><div class="label">Projects tracked</div><div class="stat" style="color:var(--accent)">${projects.count}</div><div class="muted" style="margin-top:8px">Active work surfaces under observation.</div></div>
+      <div class="card"><div class="label">Journal entries</div><div class="stat">${memory.files.length}</div><div class="muted" style="margin-top:8px">Short-term memory checkpoints.</div></div>
+      <div class="card"><div class="label">Context signal</div><div class="stat" style="color:${context.recentJournal ? 'var(--ok)' : 'var(--warn)'}">${context.recentJournal ? 'Live' : 'Cold'}</div><div class="muted" style="margin-top:8px">Whether Gizmo has fresh context on hand.</div></div>
+      <div class="card"><div class="label">Recent docs/artifacts tracked</div><div class="stat">${docs.length}</div><div class="muted" style="margin-top:8px">Files watched across repo and workspace.</div></div>
+      <div class="card"><div class="label">Agents visualised</div><div class="stat" style="color:var(--gold)">${team.agents.length}</div><div class="muted" style="margin-top:8px">Gizmo plus the Hobbit professionals.</div></div>
     </div>
     <div class="grid">
       <div class="card"><div class="label">Next step</div><div style="margin-top:8px">Use the left nav to inspect live schedule, projects, context, memory, docs, and team views.</div></div>
@@ -736,14 +752,21 @@ app.get('/projects', (req, res) => {
 app.get('/skills', (req, res) => {
   const skills = getSkillsData();
   const documentedCount = skills.skills.filter((skill) => skill.hasSkillDoc).length;
-  const cards = skills.skills.map((skill) => `
+  const teamOps = skills.skills.filter((skill) => skill.category === 'team-ops');
+  const gizmoTeam = skills.skills.filter((skill) => skill.category === 'gizmo-team');
+  const general = skills.skills.filter((skill) => skill.category === 'general');
+
+  const renderCards = (items) => items.map((skill) => `
     <div class="card stack">
       <div class="timeline-head">
         <div>
           <div class="label">${skill.hasSkillDoc ? 'Documented skill' : 'Skill folder'}</div>
           <div class="stat" style="font-size:24px">${skill.name}</div>
         </div>
-        <span class="pill ${skill.hasSkillDoc ? 'ok' : 'warn'}">${skill.hasSkillDoc ? 'Ready' : 'Thin docs'}</span>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="pill ${skill.category === 'team-ops' ? 'ops' : skill.category === 'gizmo-team' ? 'team' : 'info'}">${skill.category}</span>
+          <span class="pill ${skill.hasSkillDoc ? 'ok' : 'warn'}">${skill.hasSkillDoc ? 'Ready' : 'Thin docs'}</span>
+        </div>
       </div>
       <div class="muted">${skill.summary}</div>
       <div class="kv">
@@ -758,13 +781,17 @@ app.get('/skills', (req, res) => {
     <div class="grid">
       <div class="card"><div class="label">Skills available</div><div class="stat">${skills.count}</div></div>
       <div class="card"><div class="label">Documented skills</div><div class="stat">${documentedCount}</div></div>
+      <div class="card"><div class="label">Gizmo Team skills</div><div class="stat" style="color:var(--accent2)">${gizmoTeam.length}</div></div>
+      <div class="card"><div class="label">Team ops skills</div><div class="stat" style="color:var(--gold)">${teamOps.length}</div></div>
       <div class="card"><div class="label">Skills root</div><div class="stat" style="font-size:16px; line-height:1.4">${skills.root}</div></div>
     </div>
     <div class="grid">
       <div class="card"><div class="label">What this page is for</div><div style="margin-top:8px">A quick map of what Gizmo can do without guessing or rummaging through the basement.</div></div>
-      <div class="card"><div class="label">Reading tip</div><div style="margin-top:8px">Skills marked <span class="pill ok">Ready</span> have a visible SKILL.md file. Anything thinner probably wants a future tidy-up.</div></div>
+      <div class="card"><div class="label">Expansion ops</div><div style="margin-top:8px">Team expansion now has dedicated lifecycle skills — including onboarding and offboarding for new specialists.</div></div>
     </div>
-    <div class="grid">${cards}</div>
+    <div class="panel"><div class="label">Team ops</div><div class="grid" style="margin-top:16px">${renderCards(teamOps)}</div></div>
+    <div class="panel" style="margin-top:20px"><div class="label">Gizmo Team</div><div class="grid" style="margin-top:16px">${renderCards(gizmoTeam)}</div></div>
+    <div class="panel" style="margin-top:20px"><div class="label">General skills</div><div class="grid" style="margin-top:16px">${renderCards(general)}</div></div>
     ${skills.error ? `<div class="panel" style="margin-top:20px"><div class="label">Error</div><pre>${skills.error}</pre></div>` : ''}
   `, '/skills'));
 });
@@ -944,22 +971,33 @@ app.get('/docs', (req, res) => {
 
 app.get('/team', (req, res) => {
   const team = getTeamData();
-  const cards = team.agents.map((agent) => `
-    <div class="card">
-      <div class="label">${agent.role}</div>
-      <div class="stat" style="font-size:24px">${agent.name}</div>
+  const cards = team.agents.map((agent, index) => `
+    <div class="card stack" style="border-top:3px solid ${index === 0 ? 'var(--accent)' : index === 1 ? 'var(--gold)' : 'var(--accent2)'};">
+      <div class="timeline-head">
+        <div>
+          <div class="label">${agent.role}</div>
+          <div class="stat" style="font-size:24px">${agent.name}</div>
+        </div>
+        <span class="pill ${index === 0 ? 'info' : 'team'}">${index === 0 ? 'Core' : 'Team'}</span>
+      </div>
       <ul>${agent.responsibilities.map((r) => `<li>${r}</li>`).join('')}</ul>
     </div>`).join('');
   res.send(layout('Mission Control — Team', `
-    <div class="top"><div><h1>Team</h1><div class="muted">Current active team model. Tiny, but handsome.</div></div></div>
+    <div class="top"><div><h1>Team</h1><div class="muted">Current active team model. No longer tiny — now a properly staffed little fellowship.</div></div></div>
     <div class="grid">${cards}</div>
-    <div class="panel">
-      <div class="label">OpenClaw status source</div>
+    <div class="panel stack">
+      <div class="timeline-head">
+        <div>
+          <div class="label">OpenClaw status source</div>
+          <div style="font-size:18px; font-weight:700; margin-top:4px">Runtime status output</div>
+        </div>
+        <span class="pill idle">Raw</span>
+      </div>
       <pre>${team.raw}</pre>
     </div>
   `, '/team'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Mission Control listening on http://127.0.0.1:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Mission Control listening on http://${HOST}:${PORT}`);
 });
