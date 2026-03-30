@@ -63,10 +63,11 @@ Notes:
 
 ### What to expect
 
-- The app runs locally only
+- The app runs locally only unless you explicitly bind it for LAN or tunnel access
 - Some pages become more useful if OpenClaw is installed and working
 - The Projects page reads folders from `~/gizmos_projects`
 - If `~/gizmos_projects` is empty, the Projects page will show an empty-state proof of concept
+- On startup, Mission Control now initializes a local SQLite database for the v2 backbone at `mission-control/data/mission-control.sqlite`
 
 ### Quick local test flow
 
@@ -111,6 +112,7 @@ Then refresh `/projects`.
 
 - Node
 - Express
+- SQLite (`better-sqlite3`) for the Mission Control v2 data backbone
 - Local filesystem + OpenClaw CLI as the first data sources
 
 ## Notes

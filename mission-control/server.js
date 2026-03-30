@@ -3,11 +3,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
+const { initDatabase } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3187;
 const HOST = process.env.HOST || '127.0.0.1';
 const REPO_ROOT = '/Users/maxfergie/gizmos-ground';
+const { summary: dbSummary, path: dbPath } = initDatabase({ repoPath: REPO_ROOT });
 const OPENCLAW_WORKSPACE = '/Users/maxfergie/.openclaw/workspace';
 const PROJECTS_ROOT = '/Users/maxfergie/gizmos_projects';
 const OPENCLAW_SKILLS_ROOT = path.join(os.homedir(), '.nvm/versions/node/v22.16.0/lib/node_modules/openclaw/skills');
@@ -593,7 +595,7 @@ function layout(title, body, active = '/') {
 }
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, service: 'mission-control', time: new Date().toISOString() });
+  res.json({ ok: true, service: 'mission-control', time: new Date().toISOString(), db: dbSummary });
 });
 
 app.get('/api/schedule', (req, res) => res.json(getScheduleData()));
@@ -625,13 +627,13 @@ app.get('/', (req, res) => {
       <div class="card"><div class="label">Projects tracked</div><div class="stat" style="color:var(--accent)">${projects.count}</div><div class="muted" style="margin-top:8px">Active work surfaces under observation.</div></div>
       <div class="card"><div class="label">Journal entries</div><div class="stat">${memory.files.length}</div><div class="muted" style="margin-top:8px">Short-term memory checkpoints.</div></div>
       <div class="card"><div class="label">Context signal</div><div class="stat" style="color:${context.recentJournal ? 'var(--ok)' : 'var(--warn)'}">${context.recentJournal ? 'Live' : 'Cold'}</div><div class="muted" style="margin-top:8px">Whether Gizmo has fresh context on hand.</div></div>
-      <div class="card"><div class="label">Recent docs/artifacts tracked</div><div class="stat">${docs.length}</div><div class="muted" style="margin-top:8px">Files watched across repo and workspace.</div></div>
+      <div class="card"><div class="label">SQLite tasks</div><div class="stat" style="color:var(--accent2)">${dbSummary.tasks}</div><div class="muted" style="margin-top:8px">Explicit task records in the v2 backbone.</div></div>
       <div class="card"><div class="label">Agents visualised</div><div class="stat" style="color:var(--gold)">${team.agents.length}</div><div class="muted" style="margin-top:8px">Gizmo plus the Hobbit professionals.</div></div>
     </div>
     <div class="grid">
       <div class="card"><div class="label">Next step</div><div style="margin-top:8px">Use the left nav to inspect live schedule, projects, context, memory, docs, and team views.</div></div>
       <div class="card"><div class="label">Projects root</div><div style="margin-top:8px"><code>${projects.root}</code></div></div>
-      <div class="card"><div class="label">Backend</div><div style="margin-top:8px">Node + Express, local only, fed by OpenClaw + filesystem state.</div></div>
+      <div class="card"><div class="label">SQLite backbone</div><div style="margin-top:8px"><code>${dbPath}</code></div><div class="muted" style="margin-top:8px">Phase 1 persistence layer is now initialized on startup.</div></div>
     </div>
   `, '/'));
 });
