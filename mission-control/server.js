@@ -1299,6 +1299,7 @@ app.get('/docs', (req, res) => {
 
 app.get('/team', (req, res) => {
   const team = getTeamData();
+  const activeAssignments = team.agents.filter((agent) => agent.liveAssignment).length;
   const cards = team.agents.map((agent, index) => {
     const live = agent.liveAssignment;
     const status = live ? live.assignment_status : (agent.slug === 'gizmo-core' ? 'active' : 'idle');
@@ -1306,35 +1307,57 @@ app.get('/team', (req, res) => {
     const project = live ? live.project_name : '—';
 
     return `
-      <div class="card stack" data-team-role-slug="${agent.slug}" style="border-top:3px solid ${index === 0 ? 'var(--accent)' : index === 1 ? 'var(--gold)' : 'var(--accent2)'};">
-        <div class="timeline-head">
+      <article class="mc-card p-5" data-team-role-slug="${agent.slug}">
+        <div class="flex items-start justify-between gap-4">
           <div>
-            <div class="label">${agent.role}</div>
-            <div class="stat" style="font-size:24px"><span class="team-live-dot" data-team-live-dot></span>${agent.name}</div>
+            <p class="mc-kicker">${agent.role}</p>
+            <h2 class="mt-2 flex items-center gap-3 text-xl font-semibold tracking-tight text-foreground"><span class="team-live-dot" data-team-live-dot></span>${agent.name}</h2>
           </div>
-          <span class="pill ${index === 0 ? 'info' : 'team'}">${index === 0 ? 'Core' : 'Team'}</span>
+          <span class="mc-pill ${index === 0 ? 'info' : 'team'}">${index === 0 ? 'Core' : 'Team'}</span>
         </div>
-        <div class="section-note">Live assignment state from the runtime model. This tells you whether the role is actively attached to explicit project work right now.</div>
-        <div class="kv">
-          <div><strong>Status:</strong> <span data-team-status>${status}</span></div>
-          <div><strong>Current task:</strong> <span data-team-task>${task}</span></div>
-          <div><strong>Current project:</strong> <span data-team-project>${project}</span></div>
+        <div class="mt-4 grid gap-3 rounded-2xl border border-border/70 bg-secondary/30 p-4 text-sm text-foreground">
+          <div class="flex items-center justify-between gap-4"><span class="text-muted-foreground">Status</span><span data-team-status class="font-medium">${status}</span></div>
+          <div class="flex items-start justify-between gap-4"><span class="text-muted-foreground">Current task</span><span data-team-task class="max-w-[60%] text-right font-medium">${task}</span></div>
+          <div class="flex items-center justify-between gap-4"><span class="text-muted-foreground">Current project</span><span data-team-project class="font-medium">${project}</span></div>
         </div>
-        <ul>${agent.responsibilities.map((r) => `<li>${r}</li>`).join('')}</ul>
-      </div>`;
+        <ul class="mc-list mt-4">${agent.responsibilities.map((r) => `<li>${r}</li>`).join('')}</ul>
+      </article>`;
   }).join('');
   res.send(layout('Mission Control — Team', `
-    <div class="top"><div><h1>Team</h1><div class="muted">Current active team model. No longer tiny — now a properly staffed little fellowship.</div></div><div class="muted"><span class="live-dot"></span>Live role assignments</div></div>
-    <div class="grid">${cards}</div>
-    <div class="panel stack">
-      <div class="timeline-head">
+    <div class="flex flex-col gap-8">
+      <section class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div class="label">OpenClaw status source</div>
-          <div style="font-size:18px; font-weight:700; margin-top:4px">Runtime status output</div>
+          <p class="mc-kicker">Live roster</p>
+          <h1 class="text-3xl font-semibold tracking-tight text-foreground">Team</h1>
+          <p class="mc-muted mt-2 max-w-3xl">The fellowship as a live operating roster. This view shows which roles are actively attached to explicit project work and what they are currently carrying.</p>
         </div>
-        <span class="pill idle">Raw</span>
-      </div>
-      <pre>${team.raw}</pre>
+        <div class="flex items-center gap-2 text-sm text-muted-foreground"><span class="mc-live-dot"></span>Live role assignments</div>
+      </section>
+
+      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="mc-card p-5"><p class="mc-kicker">Total roles</p><p class="mc-value mt-2">${team.agents.length}</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Active assignments</p><p class="mc-value mt-2 text-primary">${activeAssignments}</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Idle roles</p><p class="mc-value mt-2">${team.agents.length - activeAssignments}</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Core runtime</p><p class="mc-value mt-2">OpenClaw</p></div>
+      </section>
+
+      <section class="mc-card p-5">
+        <p class="mc-kicker">How to read this page</p>
+        <p class="mc-muted mt-3">Status, current task, and current project come from the runtime assignment model. Responsibilities stay visible below each role so you can understand both the role’s lane and its current work without repeated wall-of-text helper copy.</p>
+      </section>
+
+      <section class="grid gap-4 xl:grid-cols-2">${cards}</section>
+
+      <section class="mc-panel p-6">
+        <div class="flex items-center justify-between gap-4 border-b border-border/70 pb-4">
+          <div>
+            <p class="mc-kicker">OpenClaw status source</p>
+            <h2 class="mt-2 text-xl font-semibold tracking-tight text-foreground">Runtime status output</h2>
+          </div>
+          <span class="mc-pill idle">Raw</span>
+        </div>
+        <pre class="mt-4">${team.raw}</pre>
+      </section>
     </div>
   `, '/team'));
 });
