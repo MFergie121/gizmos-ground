@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 const { Server } = require('socket.io');
-const { initDatabase, getProjectsWithState, getProjectDetail, getTeamAssignments, appendLog, appendEvent } = require('./db');
+const { initDatabase, getProjectsWithState, getProjectDetail, getTeamAssignments, appendLog, appendEvent, touchTaskLifecycle } = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -551,6 +551,30 @@ io.on('connection', (socket) => {
 });
 
 let heartbeatCounter = 0;
+const lifecycleSequence = [
+  {
+    title: 'Improve Mission Control UI polish',
+    status: 'active',
+    roleSlug: 'ui-ux-designer',
+    formalName: 'Rosie UI/UX Designer',
+    note: 'Rosie UI/UX Designer is refining hierarchy, hover states, and visual emphasis.',
+  },
+  {
+    title: 'Implement SQL data backbone',
+    status: 'done',
+    roleSlug: 'database-engineer',
+    formalName: 'Hamfast Database Engineer',
+    note: 'Hamfast Database Engineer completed the SQLite backbone milestone.',
+  },
+  {
+    title: 'Plan real-time pipeline model',
+    status: 'active',
+    roleSlug: 'tech-lead',
+    formalName: 'Peregrin Tech Lead',
+    note: 'Peregrin Tech Lead is tightening the live pipeline and event model.',
+  },
+];
+
 setInterval(() => {
   heartbeatCounter += 1;
   if (heartbeatCounter % 2 === 0) {
@@ -567,6 +591,9 @@ setInterval(() => {
       message: `Frodo Orchestrator heartbeat ${heartbeatCounter / 2}`,
       payload: { heartbeat: heartbeatCounter / 2 },
     });
+
+    const lifecycle = lifecycleSequence[(heartbeatCounter / 2 - 1) % lifecycleSequence.length];
+    touchTaskLifecycle(db, 'mission-control', lifecycle);
   }
   emitSnapshot();
 }, 5000);
@@ -1042,9 +1069,19 @@ app.get('/skills', (req, res) => {
 
 app.get('/activity', (req, res) => {
   const activity = getRecentActivityData();
-  const typeClass = (type) => ({ commit: 'ok', journal: 'info', project: 'warn', job: 'idle' }[type] || 'idle');
-  const feed = activity.items.length
-    ? activity.items.map((item) => `
+  const runtimeProjects = getProjectsWithState(db);
+  const runtimeEvents = runtimeProjects.flatMap((project) => project.events.slice(0, 5).map((event) => ({
+    type: 'runtime',
+    subject: `${project.name}: ${event.message}`,
+    date: event.created_at,
+    label: event.role_slug || 'system',
+  })));
+  const mergedItems = [...runtimeEvents, ...activity.items]
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) * -1)
+    .slice(0, 24);
+  const typeClass = (type) => ({ commit: 'ok', journal: 'info', project: 'warn', job: 'idle', runtime: 'team' }[type] || 'idle');
+  const feed = mergedItems.length
+    ? mergedItems.map((item) => `
       <div class="timeline-item">
         <div class="timeline-head">
           <div>
@@ -1063,7 +1100,7 @@ app.get('/activity', (req, res) => {
   res.send(layout('Mission Control — Activity', `
     <div class="top"><div><h1>Recent Activity</h1><div class="muted">A stitched-together feed of commits, journals, projects, and scheduled work.</div></div></div>
     <div class="grid">
-      <div class="card"><div class="label">Recent items</div><div class="stat">${activity.items.length}</div></div>
+      <div class="card"><div class="label">Recent items</div><div class="stat">${mergedItems.length}</div></div>
       <div class="card"><div class="label">Commits sampled</div><div class="stat">${activity.commitsCount}</div></div>
       <div class="card"><div class="label">Journals known</div><div class="stat">${activity.journalsCount}</div></div>
       <div class="card"><div class="label">Projects known</div><div class="stat">${activity.projectsCount}</div></div>

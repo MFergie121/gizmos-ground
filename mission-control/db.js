@@ -386,6 +386,51 @@ function appendEvent(db, { projectSlug, taskId = null, stageId = null, eventType
   `).run(project.id, taskId, stageId, eventType, roleSlug, message, payload ? JSON.stringify(payload) : null);
 }
 
+function touchTaskLifecycle(db, projectSlug, { taskTitle, status, roleSlug, formalName, note }) {
+  const project = db.prepare('SELECT id, current_stage_id FROM projects WHERE slug = ?').get(projectSlug);
+  if (!project) return null;
+
+  const task = db.prepare(`
+    SELECT id, status FROM tasks
+    WHERE project_id = ? AND title = ?
+    LIMIT 1
+  `).get(project.id, taskTitle);
+
+  if (!task) return null;
+
+  db.prepare(`
+    UPDATE tasks
+    SET status = ?,
+        assigned_role_slug = COALESCE(?, assigned_role_slug),
+        assigned_formal_name = COALESCE(?, assigned_formal_name),
+        updated_at = CURRENT_TIMESTAMP,
+        started_at = CASE WHEN ? = 'active' AND started_at IS NULL THEN CURRENT_TIMESTAMP ELSE started_at END,
+        ended_at = CASE WHEN ? = 'done' THEN CURRENT_TIMESTAMP ELSE ended_at END
+    WHERE id = ?
+  `).run(status, roleSlug, formalName, status, status, task.id);
+
+  appendEvent(db, {
+    projectSlug,
+    taskId: task.id,
+    stageId: project.current_stage_id,
+    eventType: 'task.updated',
+    roleSlug,
+    message: note || `${formalName || roleSlug || 'A team member'} updated task: ${taskTitle} → ${status}`,
+    payload: { status },
+  });
+
+  appendLog(db, {
+    projectSlug,
+    taskId: task.id,
+    roleSlug,
+    source: 'pipeline',
+    level: status === 'blocked' ? 'warn' : 'info',
+    message: note || `Task lifecycle update: ${taskTitle} → ${status}`,
+  });
+
+  return task.id;
+}
+
 function initDatabase(options = {}) {
   const db = connectDb();
   migrate(db);
@@ -402,4 +447,5 @@ module.exports = {
   getProjectsWithState,
   getTeamAssignments,
   initDatabase,
+  touchTaskLifecycle,
 };
