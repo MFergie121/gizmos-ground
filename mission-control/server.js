@@ -395,6 +395,22 @@ function getSkillsData() {
   };
 }
 
+function formatLocalTime(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Melbourne',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  }).format(date);
+}
+
 function getRecentActivityData() {
   const gitLog = safeRun("git log --date=iso --pretty=format:'%h|%ad|%s' -n 12");
   const memory = getMemoryFiles();
@@ -534,13 +550,21 @@ function getProjectsData() {
   };
 }
 
+let cachedSnapshot = null;
+let cachedSnapshotAt = 0;
+
 function getLivePayload() {
-  return {
+  const now = Date.now();
+  if (cachedSnapshot && now - cachedSnapshotAt < 1200) return cachedSnapshot;
+
+  cachedSnapshot = {
     projects: getProjectsWithState(db),
     team: getTeamData().agents,
     db: dbSummary,
-    time: new Date().toISOString(),
+    time: formatLocalTime(new Date().toISOString()),
   };
+  cachedSnapshotAt = now;
+  return cachedSnapshot;
 }
 
 function emitSnapshot() {
@@ -755,15 +779,15 @@ app.get('/', (req, res) => {
         <h1>Mission Control</h1>
         <div class="muted">Dynamic local web app for Gizmo’s operator surfaces.</div>
       </div>
-      <div class="muted"><span class="live-dot"></span>Live runtime connected · updated <span data-live-time>${new Date().toISOString()}</span></div>
+      <div class="muted"><span class="live-dot"></span>Live runtime connected · updated <span data-live-time>${formatLocalTime(new Date().toISOString())}</span></div>
     </div>
     <div class="grid">
       <div class="card"><div class="label">Scheduled jobs</div><div class="stat">${schedule.jobs.length}</div><div class="muted" style="margin-top:8px">Automation across the system.</div></div>
-      <div class="card"><div class="label">Projects tracked</div><div class="stat" data-live-projects style="color:var(--accent)">${runtimeProjects.length}</div><div class="muted" style="margin-top:8px">Active work surfaces under observation.</div></div>
-      <div class="card"><div class="label">Journal entries</div><div class="stat">${memory.files.length}</div><div class="muted" style="margin-top:8px">Short-term memory checkpoints.</div></div>
-      <div class="card"><div class="label">Context signal</div><div class="stat" style="color:${context.recentJournal ? 'var(--ok)' : 'var(--warn)'}">${context.recentJournal ? 'Live' : 'Cold'}</div><div class="muted" style="margin-top:8px">Whether Gizmo has fresh context on hand.</div></div>
-      <div class="card"><div class="label">SQLite tasks</div><div class="stat" data-live-tasks style="color:var(--accent2)">${dbSummary.tasks}</div><div class="muted" style="margin-top:8px">Explicit task records in the v2 backbone.</div></div>
-      <div class="card"><div class="label">Agents visualised</div><div class="stat" style="color:var(--gold)">${team.agents.length}</div><div class="muted" style="margin-top:8px">Gizmo plus the Hobbit professionals.</div></div>
+      <div class="mc-card p-5"><p class="mc-kicker">Projects tracked</p><p class="mc-value mt-2 text-primary" data-live-projects>${runtimeProjects.length}</p><p class="mc-muted mt-3">Active work surfaces under observation.</p></div>
+      <div class="mc-card p-5"><p class="mc-kicker">Journal entries</p><p class="mc-value mt-2">${memory.files.length}</p><p class="mc-muted mt-3">Short-term memory checkpoints.</p></div>
+      <div class="mc-card p-5"><p class="mc-kicker">Context signal</p><p class="mc-value mt-2 ${context.recentJournal ? 'text-emerald-500' : 'text-amber-500'}">${context.recentJournal ? 'Live' : 'Cold'}</p><p class="mc-muted mt-3">Whether Gizmo has fresh context on hand.</p></div>
+      <div class="mc-card p-5"><p class="mc-kicker">SQLite tasks</p><p class="mc-value mt-2 text-accent" data-live-tasks>${dbSummary.tasks}</p><p class="mc-muted mt-3">Explicit task records in the v2 backbone.</p></div>
+      <div class="mc-card p-5"><p class="mc-kicker">Agents visualised</p><p class="mc-value mt-2 text-primary">${team.agents.length}</p><p class="mc-muted mt-3">Gizmo plus the Hobbit professionals.</p></div>
     </div>
     <div class="grid">
       <div class="card"><div class="label">Next step</div><div style="margin-top:8px">Use the left nav to inspect live schedule, projects, context, memory, docs, and team views.</div></div>
@@ -1151,7 +1175,7 @@ app.get('/activity', (req, res) => {
           <span class="pill ${typeClass(item.type)}">${item.type}</span>
         </div>
         <div class="kv">
-          <div><strong>When:</strong> ${item.date || '—'}</div>
+          <div><strong>When:</strong> ${formatLocalTime(item.date)}</div>
           <div><strong>Ref:</strong> <span class="mono">${item.hash || item.path || item.label || '—'}</span></div>
         </div>
       </div>`).join('')
@@ -1280,7 +1304,7 @@ app.get('/context', (req, res) => {
 app.get('/memory', (req, res) => {
   const memory = getMemoryFiles();
   const rows = memory.files.length
-    ? memory.files.map((f) => `<tr><td>${f.name}</td><td>${f.modifiedAt}</td><td>${f.size}</td><td><code>${f.path}</code></td></tr>`).join('')
+    ? memory.files.map((f) => `<tr><td>${f.name}</td><td>${formatLocalTime(f.modifiedAt)}</td><td>${f.size}</td><td><code>${f.path}</code></td></tr>`).join('')
     : '<tr><td colspan="4">No journal files found yet.</td></tr>';
   res.send(layout('Mission Control — Memory', `
     <div class="top"><div><h1>Memory</h1><div class="muted">Journal and long-term memory browser scaffold.</div></div></div>
@@ -1299,7 +1323,7 @@ app.get('/memory', (req, res) => {
 
 app.get('/docs', (req, res) => {
   const docs = getDocsData();
-  const rows = docs.map((d) => `<tr><td>${d.name}</td><td>${d.relativePath}</td><td>${d.modifiedAt}</td><td>${d.size}</td></tr>`).join('');
+  const rows = docs.map((d) => `<tr><td>${d.name}</td><td>${d.relativePath}</td><td>${formatLocalTime(d.modifiedAt)}</td><td>${d.size}</td></tr>`).join('');
   res.send(layout('Mission Control — Docs', `
     <div class="top"><div><h1>Docs & Artifacts</h1><div class="muted">Recently tracked files across Gizmo’s Ground and the OpenClaw workspace.</div></div></div>
     <div class="panel">
