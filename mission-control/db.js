@@ -253,6 +253,87 @@ function getDbSummary(db) {
   };
 }
 
+function getProjectsWithState(db) {
+  const projects = db.prepare(`
+    SELECT p.id, p.slug, p.name, p.repo_path, p.github_url, p.discord_channel_id, p.discord_channel_name,
+           p.project_memory_path, p.status, p.updated_at,
+           ps.stage_key AS current_stage_key, ps.label AS current_stage_label
+    FROM projects p
+    LEFT JOIN pipeline_stages ps ON ps.id = p.current_stage_id
+    ORDER BY p.updated_at DESC
+  `).all();
+
+  return projects.map((project) => {
+    const stages = db.prepare(`
+      SELECT id, stage_key, label, order_index, status, started_at, ended_at, updated_at
+      FROM pipeline_stages
+      WHERE project_id = ?
+      ORDER BY order_index ASC
+    `).all(project.id);
+
+    const activeStage = stages.find((stage) => stage.status === 'active') || stages.find((stage) => stage.stage_key === project.current_stage_key) || null;
+
+    const tasks = db.prepare(`
+      SELECT id, title, description, status, priority, assigned_role_slug, assigned_formal_name, created_at, updated_at, started_at, ended_at
+      FROM tasks
+      WHERE project_id = ?
+      ORDER BY CASE status
+        WHEN 'active' THEN 0
+        WHEN 'blocked' THEN 1
+        WHEN 'todo' THEN 2
+        WHEN 'done' THEN 3
+        ELSE 4
+      END, updated_at DESC
+    `).all(project.id);
+
+    const activeTasks = activeStage
+      ? db.prepare(`
+          SELECT id, title, description, status, priority, assigned_role_slug, assigned_formal_name, created_at, updated_at, started_at, ended_at
+          FROM tasks
+          WHERE project_id = ? AND stage_id = ?
+          ORDER BY CASE status
+            WHEN 'active' THEN 0
+            WHEN 'blocked' THEN 1
+            WHEN 'todo' THEN 2
+            WHEN 'done' THEN 3
+            ELSE 4
+          END, updated_at DESC
+        `).all(project.id, activeStage.id)
+      : [];
+
+    const events = db.prepare(`
+      SELECT id, event_type, role_slug, message, created_at
+      FROM events
+      WHERE project_id = ?
+      ORDER BY datetime(created_at) DESC, id DESC
+      LIMIT 12
+    `).all(project.id);
+
+    const logs = db.prepare(`
+      SELECT id, role_slug, source, level, message, timestamp
+      FROM logs
+      WHERE project_id = ?
+      ORDER BY datetime(timestamp) DESC, id DESC
+      LIMIT 20
+    `).all(project.id);
+
+    return {
+      ...project,
+      stages,
+      tasks,
+      activeStage,
+      activeTasks,
+      events,
+      logs,
+    };
+  });
+}
+
+function getProjectDetail(db, slug) {
+  const projects = getProjectsWithState(db);
+  return projects.find((project) => project.slug === slug) || null;
+}
+
 function initDatabase(options = {}) {
   const db = connectDb();
   migrate(db);
@@ -263,5 +344,7 @@ function initDatabase(options = {}) {
 module.exports = {
   DB_PATH,
   DEFAULT_STAGES,
+  getProjectDetail,
+  getProjectsWithState,
   initDatabase,
 };

@@ -3,13 +3,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
-const { initDatabase } = require('./db');
+const { initDatabase, getProjectsWithState, getProjectDetail } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3187;
 const HOST = process.env.HOST || '127.0.0.1';
 const REPO_ROOT = '/Users/maxfergie/gizmos-ground';
-const { summary: dbSummary, path: dbPath } = initDatabase({ repoPath: REPO_ROOT });
+const { db, summary: dbSummary, path: dbPath } = initDatabase({ repoPath: REPO_ROOT });
 const OPENCLAW_WORKSPACE = '/Users/maxfergie/.openclaw/workspace';
 const PROJECTS_ROOT = '/Users/maxfergie/gizmos_projects';
 const OPENCLAW_SKILLS_ROOT = path.join(os.homedir(), '.nvm/versions/node/v22.16.0/lib/node_modules/openclaw/skills');
@@ -599,7 +599,12 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/api/schedule', (req, res) => res.json(getScheduleData()));
-app.get('/api/projects', (req, res) => res.json(getProjectsData()));
+app.get('/api/projects', (req, res) => res.json({ filesystem: getProjectsData(), runtime: getProjectsWithState(db) }));
+app.get('/api/projects/:slug', (req, res) => {
+  const project = getProjectDetail(db, req.params.slug);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  res.json(project);
+});
 app.get('/api/skills', (req, res) => res.json(getSkillsData()));
 app.get('/api/activity', (req, res) => res.json(getRecentActivityData()));
 app.get('/api/context', (req, res) => res.json(getContextData()));
@@ -610,6 +615,7 @@ app.get('/api/team', (req, res) => res.json(getTeamData()));
 app.get('/', (req, res) => {
   const schedule = getScheduleData();
   const projects = getProjectsData();
+  const runtimeProjects = getProjectsWithState(db);
   const context = getContextData();
   const memory = getMemoryFiles();
   const docs = getDocsData();
@@ -624,7 +630,7 @@ app.get('/', (req, res) => {
     </div>
     <div class="grid">
       <div class="card"><div class="label">Scheduled jobs</div><div class="stat">${schedule.jobs.length}</div><div class="muted" style="margin-top:8px">Automation across the system.</div></div>
-      <div class="card"><div class="label">Projects tracked</div><div class="stat" style="color:var(--accent)">${projects.count}</div><div class="muted" style="margin-top:8px">Active work surfaces under observation.</div></div>
+      <div class="card"><div class="label">Projects tracked</div><div class="stat" style="color:var(--accent)">${runtimeProjects.length}</div><div class="muted" style="margin-top:8px">Active work surfaces under observation.</div></div>
       <div class="card"><div class="label">Journal entries</div><div class="stat">${memory.files.length}</div><div class="muted" style="margin-top:8px">Short-term memory checkpoints.</div></div>
       <div class="card"><div class="label">Context signal</div><div class="stat" style="color:${context.recentJournal ? 'var(--ok)' : 'var(--warn)'}">${context.recentJournal ? 'Live' : 'Cold'}</div><div class="muted" style="margin-top:8px">Whether Gizmo has fresh context on hand.</div></div>
       <div class="card"><div class="label">SQLite tasks</div><div class="stat" style="color:var(--accent2)">${dbSummary.tasks}</div><div class="muted" style="margin-top:8px">Explicit task records in the v2 backbone.</div></div>
@@ -632,7 +638,7 @@ app.get('/', (req, res) => {
     </div>
     <div class="grid">
       <div class="card"><div class="label">Next step</div><div style="margin-top:8px">Use the left nav to inspect live schedule, projects, context, memory, docs, and team views.</div></div>
-      <div class="card"><div class="label">Projects root</div><div style="margin-top:8px"><code>${projects.root}</code></div></div>
+      <div class="card"><div class="label">Runtime projects</div><div style="margin-top:8px"><strong>${runtimeProjects.map((p) => p.name).join(', ') || 'None yet'}</strong></div><div class="muted" style="margin-top:8px">Projects currently registered in the SQLite backbone.</div></div>
       <div class="card"><div class="label">SQLite backbone</div><div style="margin-top:8px"><code>${dbPath}</code></div><div class="muted" style="margin-top:8px">Phase 1 persistence layer is now initialized on startup.</div></div>
     </div>
   `, '/'));
@@ -706,48 +712,167 @@ app.get('/schedule', (req, res) => {
 });
 
 app.get('/projects', (req, res) => {
-  const projects = getProjectsData();
-  const cards = projects.projects.map((project) => `
-    <div class="card">
-      <div class="label">${project.isGitRepo ? 'Git project' : 'Project folder'}</div>
-      <div class="stat" style="font-size:24px">${project.name}</div>
-      <div class="muted" style="margin-top:8px">${project.description}</div>
-      <div style="margin-top:14px; display:grid; gap:8px; font-size:14px;">
-        <div><strong>Path:</strong> <code>${project.path}</code></div>
-        <div><strong>Package:</strong> ${project.packageName || '—'}</div>
-        <div><strong>README:</strong> ${project.hasReadme ? 'Yes' : 'No'}</div>
-        <div><strong>Project memory:</strong> ${project.hasProjectMemory ? 'Yes' : 'No'}</div>
-        <div><strong>Last modified:</strong> ${project.modifiedAt}</div>
+  const projects = getProjectsWithState(db);
+  const cards = projects.map((project) => `
+    <div class="card stack">
+      <div class="timeline-head">
+        <div>
+          <div class="label">Project</div>
+          <div class="stat" style="font-size:24px">${project.name}</div>
+        </div>
+        <span class="pill ${project.status === 'active' ? 'ok' : project.status === 'blocked' ? 'warn' : 'idle'}">${project.status}</span>
       </div>
+      <div class="muted">Repo-backed software project with explicit pipeline state.</div>
+      <div class="kv">
+        <div><strong>Current stage:</strong> ${project.current_stage_label || '—'}</div>
+        <div><strong>Repo path:</strong> <code>${project.repo_path}</code></div>
+        <div><strong>GitHub:</strong> ${project.github_url ? `<a href="${project.github_url}" style="color:#93c5fd">${project.github_url}</a>` : '—'}</div>
+        <div><strong>Discord channel:</strong> ${project.discord_channel_name || '—'}</div>
+        <div><strong>Project memory:</strong> <code>${project.project_memory_path || '—'}</code></div>
+        <div><strong>Active tasks:</strong> ${project.activeTasks.length}</div>
+      </div>
+      <div><a href="/projects/${project.slug}" style="color:#bfdbfe; text-decoration:none; font-weight:700;">Open project detail →</a></div>
     </div>`).join('');
 
   const emptyState = `
     <div class="panel">
-      <div class="label">Proof of concept</div>
-      <h2 style="margin-top:10px">No projects yet</h2>
-      <div class="muted" style="margin-top:8px">
-        Mission Control is now watching <code>${projects.root}</code> for project folders.
-        When Gizmo starts working on projects there, they’ll appear here automatically.
-      </div>
-      <div style="margin-top:16px">
-        <strong>Expected shape:</strong>
-        <ul>
-          <li>Each project lives in its own folder under <code>${projects.root}</code></li>
-          <li>Optional <code>README.md</code> for project summary</li>
-          <li>Optional <code>PROJECT_MEMORY.md</code> for Gizmo-specific context</li>
-          <li>Optional git repo and <code>package.json</code> metadata</li>
-        </ul>
-      </div>
+      <div class="label">No registered projects</div>
+      <h2 style="margin-top:10px">Nothing in the runtime model yet</h2>
+      <div class="muted" style="margin-top:8px">Once projects are registered in the SQLite backbone, they’ll appear here with stages, tasks, and explicit ownership.</div>
     </div>`;
 
   res.send(layout('Mission Control — Projects', `
-    <div class="top"><div><h1>Projects</h1><div class="muted">Projects Gizmo is working on under <code>${projects.root}</code>.</div></div></div>
+    <div class="top"><div><h1>Projects</h1><div class="muted">Projects registered in Mission Control’s runtime backbone.</div></div></div>
     <div class="grid">
-      <div class="card"><div class="label">Projects tracked</div><div class="stat">${projects.count}</div></div>
-      <div class="card"><div class="label">Projects root</div><div class="stat" style="font-size:16px; line-height:1.4">${projects.root}</div></div>
+      <div class="card"><div class="label">Projects tracked</div><div class="stat">${projects.length}</div></div>
+      <div class="card"><div class="label">Data source</div><div class="stat" style="font-size:16px; line-height:1.4">SQLite runtime model</div></div>
     </div>
-    ${projects.empty ? emptyState : `<div class="grid">${cards}</div>`}
-    ${projects.error ? `<div class="panel" style="margin-top:20px"><div class="label">Error</div><pre>${projects.error}</pre></div>` : ''}
+    ${projects.length === 0 ? emptyState : `<div class="grid">${cards}</div>`}
+  `, '/projects'));
+});
+
+app.get('/projects/:slug', (req, res) => {
+  const project = getProjectDetail(db, req.params.slug);
+  if (!project) {
+    res.status(404).send(layout('Project not found', `
+      <div class="top"><div><h1>Project not found</h1><div class="muted">No runtime project exists for slug <code>${req.params.slug}</code>.</div></div></div>
+    `));
+    return;
+  }
+
+  const stageBar = project.stages.map((stage) => {
+    const color = stage.status === 'done'
+      ? 'var(--ok)'
+      : stage.status === 'active'
+        ? 'var(--accent)'
+        : stage.status === 'blocked'
+          ? 'var(--warn)'
+          : 'rgba(148,163,184,.18)';
+    return `
+      <div class="card stack" style="border-top:3px solid ${color}; min-height: 140px;">
+        <div class="label">${stage.label}</div>
+        <div class="stat" style="font-size:18px">${stage.status}</div>
+        <div class="muted">${stage.stage_key}</div>
+      </div>`;
+  }).join('');
+
+  const activeTasks = project.activeTasks.length
+    ? project.activeTasks.map((task) => `
+      <div class="card stack" style="border-left:4px solid ${task.status === 'active' ? 'var(--accent2)' : task.status === 'blocked' ? 'var(--warn)' : 'var(--line)'};">
+        <div class="timeline-head">
+          <div>
+            <div class="label">${task.status}</div>
+            <div class="stat" style="font-size:22px">${task.title}</div>
+          </div>
+          <span class="pill ${task.status === 'active' ? 'team' : task.status === 'blocked' ? 'warn' : 'idle'}">${task.priority}</span>
+        </div>
+        <div class="muted">${task.description || 'No description yet.'}</div>
+        <div class="kv">
+          <div><strong>Owner:</strong> ${task.assigned_formal_name || 'Unassigned'}</div>
+          <div><strong>Role slug:</strong> <code>${task.assigned_role_slug || '—'}</code></div>
+          <div><strong>Updated:</strong> ${task.updated_at}</div>
+        </div>
+      </div>`).join('')
+    : '<div class="panel">No active tasks in the current stage yet.</div>';
+
+  const eventFeed = project.events.length
+    ? project.events.map((event) => `
+      <div class="timeline-item">
+        <div class="timeline-head">
+          <div>
+            <div class="label">${event.event_type}</div>
+            <div style="font-size:17px; font-weight:700; margin-top:4px">${event.message}</div>
+          </div>
+          <span class="pill info">${event.role_slug || 'system'}</span>
+        </div>
+        <div class="muted">${event.created_at}</div>
+      </div>`).join('')
+    : '<div class="timeline-item">No events yet.</div>';
+
+  const logs = project.logs.length
+    ? project.logs.map((log) => `
+      <div class="timeline-item">
+        <div class="timeline-head">
+          <div>
+            <div class="label">${log.source} · ${log.level}</div>
+            <div style="font-size:16px; font-weight:700; margin-top:4px">${log.message}</div>
+          </div>
+          <span class="pill idle">${log.role_slug || 'system'}</span>
+        </div>
+        <div class="muted">${log.timestamp}</div>
+      </div>`).join('')
+    : '<div class="timeline-item">No logs yet.</div>';
+
+  res.send(layout(`Mission Control — ${project.name}`, `
+    <div class="top"><div><h1>${project.name}</h1><div class="muted">Project detail view for explicit pipeline state, active tasks, events, and logs.</div></div></div>
+    <div class="grid">
+      <div class="card"><div class="label">Status</div><div class="stat">${project.status}</div></div>
+      <div class="card"><div class="label">Current stage</div><div class="stat" style="font-size:22px">${project.current_stage_label || '—'}</div></div>
+      <div class="card"><div class="label">Discord channel</div><div class="stat" style="font-size:18px">${project.discord_channel_name || '—'}</div></div>
+      <div class="card"><div class="label">Active tasks</div><div class="stat">${project.activeTasks.length}</div></div>
+    </div>
+    <div class="panel stack">
+      <div class="timeline-head">
+        <div>
+          <div class="label">Pipeline</div>
+          <div style="font-size:18px; font-weight:700; margin-top:4px">Project stage progression</div>
+        </div>
+        <span class="pill team">explicit</span>
+      </div>
+      <div class="grid">${stageBar}</div>
+    </div>
+    <div class="panel stack" style="margin-top:20px">
+      <div class="timeline-head">
+        <div>
+          <div class="label">Active tasks</div>
+          <div style="font-size:18px; font-weight:700; margin-top:4px">What the fellowship is working on right now</div>
+        </div>
+        <span class="pill ok">current stage</span>
+      </div>
+      <div class="grid">${activeTasks}</div>
+    </div>
+    <div class="grid" style="margin-top:20px">
+      <div class="panel stack">
+        <div class="timeline-head">
+          <div>
+            <div class="label">Events</div>
+            <div style="font-size:18px; font-weight:700; margin-top:4px">Explicit operational history</div>
+          </div>
+          <span class="pill info">event feed</span>
+        </div>
+        <div class="timeline">${eventFeed}</div>
+      </div>
+      <div class="panel stack">
+        <div class="timeline-head">
+          <div>
+            <div class="label">Logs</div>
+            <div style="font-size:18px; font-weight:700; margin-top:4px">Structured technical output</div>
+          </div>
+          <span class="pill idle">logs</span>
+        </div>
+        <div class="timeline">${logs}</div>
+      </div>
+    </div>
   `, '/projects'));
 });
 
