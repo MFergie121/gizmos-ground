@@ -10,6 +10,7 @@ const { initDatabase, getProjectsWithState, getProjectDetail, getTeamAssignments
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+app.use('/public', express.static(path.join(__dirname, 'public')));
 const PORT = process.env.PORT || 3187;
 const HOST = process.env.HOST || '127.0.0.1';
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || null;
