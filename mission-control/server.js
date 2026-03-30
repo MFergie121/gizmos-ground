@@ -600,78 +600,39 @@ setInterval(() => {
 
 function layout(title, body, active = '/', attrs = {}) {
   const bodyAttrs = Object.entries(attrs).map(([key, value]) => `${key}="${String(value).replace(/"/g, '&quot;')}"`).join(' ');
+  const navItem = (href, label, icon) => `<a href="${href}" class="mc-sidebar-link ${active === href ? 'mc-sidebar-link-active' : ''}"><span class="mc-icon" data-lucide="${icon}"></span><span>${label}</span></a>`;
   return `<!doctype html>
   <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title}</title>
-    <style>
-      :root {
-        --bg: #07111f;
-        --bg2: #0c1729;
-        --panel: rgba(15, 23, 42, 0.88);
-        --panel2: #162237;
-        --text: #e5eefc;
-        --muted: #9fb0c9;
-        --line: rgba(148, 163, 184, 0.18);
-        --accent: #60a5fa;
-        --accent2: #a78bfa;
-        --gold: #fbbf24;
-        --ok: #10b981;
-        --warn: #f59e0b;
-        --danger: #f87171;
-      }
-      * { box-sizing: border-box; }
-      body { margin: 0; font-family: Inter, system-ui, sans-serif; background: radial-gradient(circle at top right, rgba(96,165,250,.14), transparent 28%), radial-gradient(circle at top left, rgba(167,139,250,.12), transparent 24%), linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%); color: var(--text); }
-      .app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
-      .sidebar { border-right: 1px solid var(--line); background: rgba(7,17,31,0.86); backdrop-filter: blur(12px); padding: 24px 18px; }
-      .brand { font-size: 22px; font-weight: 900; margin-bottom: 6px; display:flex; align-items:center; gap:10px; }
-      .brand-mark { width: 34px; height: 34px; display:inline-grid; place-items:center; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; box-shadow: 0 10px 30px rgba(96,165,250,.25); }
-      .sub { color: var(--muted); font-size: 14px; margin-bottom: 22px; }
-      .nav a { display: block; color: var(--text); text-decoration: none; padding: 11px 12px; border-radius: 12px; margin-bottom: 6px; border:1px solid transparent; transition: all .18s ease; }
-      .nav a.active, .nav a:hover { background: linear-gradient(90deg, rgba(96,165,250,0.18), rgba(167,139,250,0.14)); color: #dbeafe; border-color: rgba(96,165,250,.22); transform: translateX(2px); }
-      .main { padding: 30px; }
-      .top { display:flex; justify-content:space-between; gap: 16px; align-items:end; flex-wrap:wrap; margin-bottom: 22px; }
-      .top h1 { margin: 0; font-size: 34px; }
-      .muted { color: var(--muted); }
-      .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom: 20px; }
-      .card, .panel { background: var(--panel); border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow: 0 16px 40px rgba(0,0,0,0.24); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
-      .card:hover, .panel:hover { transform: translateY(-2px); border-color: rgba(96,165,250,.26); box-shadow: 0 18px 44px rgba(0,0,0,0.28); }
-      .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .12em; }
-      .stat { font-size: 30px; font-weight: 800; margin-top: 8px; }
-      table { width:100%; border-collapse: collapse; font-size:14px; }
-      th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); text-align:left; vertical-align: top; }
-      th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
-      .pill { display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px; font-weight:700; }
-      .pill.ok { color:#a7f3d0; background:rgba(16,185,129,.15); border-color:rgba(16,185,129,.35); }
-      .pill.idle { color:#e5e7eb; background:rgba(107,114,128,.15); }
-      .pill.warn { color:#fde68a; background:rgba(245,158,11,.15); border-color:rgba(245,158,11,.35); }
-      .pill.info { color:#bfdbfe; background:rgba(96,165,250,.15); border-color:rgba(96,165,250,.35); }
-      .pill.team { color:#f5d0fe; background:rgba(168,85,247,.16); border-color:rgba(168,85,247,.34); }
-      .pill.ops { color:#fde68a; background:rgba(251,191,36,.14); border-color:rgba(251,191,36,.34); }
-      .stack { display:grid; gap:16px; }
-      .kv { display:grid; gap:8px; font-size:14px; }
-      .timeline { display:grid; gap:12px; }
-      .timeline-item { border:1px solid var(--line); border-radius:14px; padding:14px; background:rgba(31,41,55,.45); }
-      .timeline-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; margin-bottom:8px; }
-      .stage-strip { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:14px; }
-      .stage-card { position:relative; overflow:hidden; }
-      .stage-status { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.12em; }
-      .section-note { color: var(--muted); font-size: 14px; line-height: 1.55; }
-      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-      .live-dot { display:inline-block; width:10px; height:10px; border-radius:999px; background:var(--ok); box-shadow:0 0 0 0 rgba(16,185,129,.6); animation:pulse 1.8s infinite; margin-right:8px; }
-      .team-live-dot { display:inline-block; width:10px; height:10px; border-radius:999px; background:rgba(148,163,184,.45); margin-right:8px; }
-      @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.6);} 70% { box-shadow:0 0 0 10px rgba(16,185,129,0);} 100% { box-shadow:0 0 0 0 rgba(16,185,129,0);} }
-      code, pre { white-space: pre-wrap; word-break: break-word; }
-      pre { background:#0a0f1a; border:1px solid var(--line); padding:14px; border-radius:12px; overflow:auto; }
-      ul { margin: 8px 0 0 18px; }
-      @media (max-width: 900px) { .app { grid-template-columns: 1fr; } .sidebar { border-right:0; border-bottom:1px solid var(--line); } }
-    </style>
+    <link rel="stylesheet" href="/public/app.generated.css" />
   </head>
   <body ${bodyAttrs}>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
+      const storedTheme = localStorage.getItem('mc-theme');
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const startingTheme = storedTheme || (systemDark ? 'dark' : 'light');
+      document.documentElement.classList.toggle('light', startingTheme === 'light');
+
+      function setTheme(nextTheme) {
+        const resolved = nextTheme === 'system'
+          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : nextTheme;
+        document.documentElement.classList.toggle('light', resolved === 'light');
+        localStorage.setItem('mc-theme', nextTheme);
+        const themeLabel = document.querySelector('[data-theme-label]');
+        if (themeLabel) themeLabel.textContent = resolved === 'light' ? 'Light' : 'Dark';
+      }
+
+      window.toggleMissionControlTheme = function toggleMissionControlTheme() {
+        const currentResolved = document.documentElement.classList.contains('light') ? 'light' : 'dark';
+        setTheme(currentResolved === 'light' ? 'dark' : 'light');
+      };
+
       window.__mcSocket = io();
       window.__mcSocket.on('snapshot', (payload) => {
         window.__mcLivePayload = payload;
@@ -696,12 +657,12 @@ function layout(title, body, active = '/', attrs = {}) {
               statusEl.textContent = live.liveAssignment.assignment_status || 'active';
               taskEl.textContent = live.liveAssignment.task_title || '—';
               projectEl.textContent = live.liveAssignment.project_name || '—';
-              if (liveDot) liveDot.style.background = 'var(--ok)';
+              if (liveDot) liveDot.style.background = 'hsl(160 84% 39%)';
             } else {
               statusEl.textContent = slug === 'gizmo-core' ? 'active' : 'idle';
               taskEl.textContent = slug === 'gizmo-core' ? 'General operations' : '—';
               projectEl.textContent = '—';
-              if (liveDot) liveDot.style.background = slug === 'gizmo-core' ? 'var(--ok)' : 'rgba(148,163,184,.45)';
+              if (liveDot) liveDot.style.background = slug === 'gizmo-core' ? 'hsl(160 84% 39%)' : 'hsl(215 20% 65%)';
             }
           });
         }
@@ -717,24 +678,45 @@ function layout(title, body, active = '/', attrs = {}) {
           }
         }
       });
+
+      window.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+        const themeLabel = document.querySelector('[data-theme-label]');
+        if (themeLabel) themeLabel.textContent = document.documentElement.classList.contains('light') ? 'Light' : 'Dark';
+      });
     </script>
-    <div class="app">
-      <aside class="sidebar">
-        <div class="brand"><span class="brand-mark">⚙️</span> Gizmo Mission Control</div>
-        <div class="sub">Operator dashboard for Max + Gizmo.</div>
-        <nav class="nav">
-          <a href="/" class="${active === '/' ? 'active' : ''}">Overview</a>
-          <a href="/schedule" class="${active === '/schedule' ? 'active' : ''}">Schedule</a>
-          <a href="/projects" class="${active === '/projects' ? 'active' : ''}">Projects</a>
-          <a href="/skills" class="${active === '/skills' ? 'active' : ''}">Skills</a>
-          <a href="/activity" class="${active === '/activity' ? 'active' : ''}">Activity</a>
-          <a href="/context" class="${active === '/context' ? 'active' : ''}">Context</a>
-          <a href="/memory" class="${active === '/memory' ? 'active' : ''}">Memory</a>
-          <a href="/docs" class="${active === '/docs' ? 'active' : ''}">Docs</a>
-          <a href="/team" class="${active === '/team' ? 'active' : ''}">Team</a>
-        </nav>
+    <div class="mc-shell lg:grid lg:min-h-screen lg:grid-cols-[280px_1fr]">
+      <aside class="border-b border-border/70 bg-card/80 backdrop-blur lg:border-b-0 lg:border-r">
+        <div class="flex h-full flex-col gap-6 p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-3 text-xl font-semibold tracking-tight">
+                <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                  <i data-lucide="bot" class="mc-icon h-5 w-5"></i>
+                </div>
+                <span>Gizmo Mission Control</span>
+              </div>
+              <p class="mc-muted mt-3 max-w-xs">Operator dashboard for Max + Gizmo.</p>
+            </div>
+            <button onclick="toggleMissionControlTheme()" class="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">
+              <i data-lucide="sun-moon" class="mc-icon"></i>
+              <span data-theme-label>Dark</span>
+            </button>
+          </div>
+          <nav class="grid gap-1.5">
+            ${navItem('/', 'Overview', 'layout-dashboard')}
+            ${navItem('/schedule', 'Schedule', 'calendar-clock')}
+            ${navItem('/projects', 'Projects', 'folders')}
+            ${navItem('/skills', 'Skills', 'sparkles')}
+            ${navItem('/activity', 'Activity', 'activity')}
+            ${navItem('/context', 'Context', 'brain')}
+            ${navItem('/memory', 'Memory', 'book-open')}
+            ${navItem('/docs', 'Docs', 'file-text')}
+            ${navItem('/team', 'Team', 'users-round')}
+          </nav>
+        </div>
       </aside>
-      <main class="main">${body}</main>
+      <main class="p-4 md:p-6 xl:p-8">${body}</main>
     </div>
   </body>
   </html>`;
