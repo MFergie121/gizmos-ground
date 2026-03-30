@@ -972,60 +972,73 @@ app.get('/projects/:slug', (req, res) => {
     : '<div class="timeline-item">No logs yet.</div>';
 
   res.send(layout(`Mission Control — ${project.name}`, `
-    <div class="top"><div><h1>${project.name}</h1><div class="muted">Project detail view for explicit pipeline state, active tasks, events, and logs.</div></div><div class="muted"><span class="live-dot"></span>Live project view</div></div>
-    <div class="grid">
-      <div class="card"><div class="label">Status</div><div class="stat">${project.status}</div><div class="section-note">Overall project health.</div></div>
-      <div class="card"><div class="label">Current stage</div><div class="stat" data-project-current-stage style="font-size:22px">${project.current_stage_label || '—'}</div><div class="section-note">The active pipeline checkpoint right now.</div></div>
-      <div class="card"><div class="label">Discord channel</div><div class="stat" style="font-size:18px">${project.discord_channel_name || '—'}</div><div class="section-note">Where intervention and project discussion should happen.</div></div>
-      <div class="card"><div class="label">Active tasks</div><div class="stat" data-project-active-task-count>${project.activeTasks.length}</div><div class="section-note">Explicit tasks in the current active stage.</div></div>
-      <div class="card"><div class="label">Blocked tasks</div><div class="stat" style="color:var(--warn)">${project.summary.blockedTasks}</div><div class="section-note">Tasks needing attention or unblock work.</div></div>
-      <div class="card"><div class="label">Completed tasks</div><div class="stat" style="color:var(--ok)">${project.summary.doneTasks}</div><div class="section-note">Tasks already finished in the runtime model.</div></div>
-    </div>
-    <div class="panel stack">
-      <div class="timeline-head">
+    <div class="flex flex-col gap-8">
+      <section class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div class="label">Pipeline</div>
-          <div style="font-size:18px; font-weight:700; margin-top:4px">Project stage progression</div>
+          <p class="mc-kicker">Project detail</p>
+          <h1 class="text-3xl font-semibold tracking-tight text-foreground">${project.name}</h1>
+          <p class="mc-muted mt-2 max-w-3xl">A live view of explicit pipeline state, active tasks, operational history, and technical output for this project.</p>
         </div>
-        <span class="pill team">explicit</span>
-      </div>
-      <div class="section-note">This is the explicit pipeline backbone for the project. The highlighted stage is the current live stage, and the tasks below belong to that operational moment.</div>
-      <div class="stage-strip" data-project-stage-grid>${stageBar}</div>
-    </div>
-    <div class="panel stack" style="margin-top:20px">
-      <div class="timeline-head">
-        <div>
-          <div class="label">Active tasks</div>
-          <div style="font-size:18px; font-weight:700; margin-top:4px">What the fellowship is working on right now</div>
-        </div>
-        <span class="pill ok">current stage</span>
-      </div>
-      <div class="section-note">These are the explicit work items currently attached to the active pipeline stage. This section should make it obvious what each team member is doing right now.</div>
-      <div class="grid" data-project-active-tasks>${activeTasks}</div>
-    </div>
-    <div class="grid" style="margin-top:20px">
-      <div class="panel stack">
-        <div class="timeline-head">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground"><span class="mc-live-dot"></span>Live project view</div>
+      </section>
+
+      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div class="mc-card p-5"><p class="mc-kicker">Status</p><p class="mc-value mt-2">${project.status}</p><p class="mc-muted mt-3">Overall project health.</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Current stage</p><p class="mc-value mt-2" data-project-current-stage>${project.current_stage_label || '—'}</p><p class="mc-muted mt-3">The active pipeline checkpoint right now.</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Discord channel</p><p class="mc-value mt-2 text-lg">${project.discord_channel_name || '—'}</p><p class="mc-muted mt-3">Where intervention and project discussion should happen.</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Active tasks</p><p class="mc-value mt-2 text-primary" data-project-active-task-count>${project.activeTasks.length}</p><p class="mc-muted mt-3">Explicit tasks in the current active stage.</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Blocked tasks</p><p class="mc-value mt-2 text-amber-500">${project.summary.blockedTasks}</p><p class="mc-muted mt-3">Tasks needing attention or unblock work.</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Completed tasks</p><p class="mc-value mt-2 text-emerald-500">${project.summary.doneTasks}</p><p class="mc-muted mt-3">Tasks already finished in the runtime model.</p></div>
+      </section>
+
+      <section class="mc-panel p-6">
+        <div class="flex items-center justify-between gap-4 border-b border-border/70 pb-4">
           <div>
-            <div class="label">Events</div>
-            <div style="font-size:18px; font-weight:700; margin-top:4px">Explicit operational history</div>
+            <p class="mc-kicker">Pipeline</p>
+            <h2 class="mt-2 text-xl font-semibold tracking-tight text-foreground">Project stage progression</h2>
           </div>
-          <span class="pill info">event feed</span>
+          <span class="mc-pill team">Explicit</span>
         </div>
-        <div class="section-note">Human-readable state changes. This is the clean operational story.</div>
-        <div class="timeline" data-project-events>${eventFeed}</div>
-      </div>
-      <div class="panel stack">
-        <div class="timeline-head">
+        <p class="mc-muted mt-4">This is the explicit pipeline backbone for the project. The highlighted stage is the current live stage, and the tasks below belong to that operational moment.</p>
+        <div class="stage-strip mt-5" data-project-stage-grid>${stageBar}</div>
+      </section>
+
+      <section class="mc-panel p-6">
+        <div class="flex items-center justify-between gap-4 border-b border-border/70 pb-4">
           <div>
-            <div class="label">Logs</div>
-            <div style="font-size:18px; font-weight:700; margin-top:4px">Structured technical output</div>
+            <p class="mc-kicker">Active tasks</p>
+            <h2 class="mt-2 text-xl font-semibold tracking-tight text-foreground">What the fellowship is working on right now</h2>
           </div>
-          <span class="pill idle">logs</span>
+          <span class="mc-pill ok">Current stage</span>
         </div>
-        <div class="section-note">Structured technical output and runtime traces. This is the goblin cave underneath the cleaner event story.</div>
-        <div class="timeline" data-project-logs>${logs}</div>
-      </div>
+        <p class="mc-muted mt-4">These are the explicit work items currently attached to the active pipeline stage. This section should make it obvious what each team member is doing right now.</p>
+        <div class="grid mt-5" data-project-active-tasks>${activeTasks}</div>
+      </section>
+
+      <section class="grid gap-4 xl:grid-cols-2">
+        <div class="mc-panel p-6">
+          <div class="flex items-center justify-between gap-4 border-b border-border/70 pb-4">
+            <div>
+              <p class="mc-kicker">Events</p>
+              <h2 class="mt-2 text-xl font-semibold tracking-tight text-foreground">Explicit operational history</h2>
+            </div>
+            <span class="mc-pill info">Event feed</span>
+          </div>
+          <p class="mc-muted mt-4">Human-readable state changes. This is the clean operational story.</p>
+          <div class="timeline mt-5" data-project-events>${eventFeed}</div>
+        </div>
+        <div class="mc-panel p-6">
+          <div class="flex items-center justify-between gap-4 border-b border-border/70 pb-4">
+            <div>
+              <p class="mc-kicker">Logs</p>
+              <h2 class="mt-2 text-xl font-semibold tracking-tight text-foreground">Structured technical output</h2>
+            </div>
+            <span class="mc-pill idle">Logs</span>
+          </div>
+          <p class="mc-muted mt-4">Structured technical output and runtime traces. This is the goblin cave underneath the cleaner event story.</p>
+          <div class="timeline mt-5" data-project-logs>${logs}</div>
+        </div>
+      </section>
     </div>
   `, '/projects', { 'data-project-slug': project.slug }));
 });
