@@ -84,6 +84,134 @@
     @apply min-h-screen bg-background text-foreground;
   }
 
+  /* Legacy compatibility layer while server-rendered pages are migrated */
+  .top {
+    @apply mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between;
+  }
+
+  .top h1 {
+    @apply text-3xl font-semibold tracking-tight text-foreground;
+  }
+
+  .muted {
+    @apply text-sm leading-6 text-muted-foreground;
+  }
+
+  .grid {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .card {
+    @apply rounded-2xl border border-border/80 bg-card/95 p-5 text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg;
+  }
+
+  .panel {
+    @apply rounded-2xl border border-border/80 bg-card/95 p-6 text-card-foreground shadow-sm;
+  }
+
+  .label {
+    @apply text-[11px] uppercase tracking-[0.22em] text-muted-foreground;
+  }
+
+  .stat {
+    @apply mt-2 text-2xl font-semibold tracking-tight;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold tracking-wide;
+  }
+
+  .pill.ok {
+    @apply border-emerald-500/30 bg-emerald-500/10 text-emerald-400;
+  }
+
+  .pill.idle {
+    @apply border-border bg-secondary text-muted-foreground;
+  }
+
+  .pill.warn {
+    @apply border-amber-500/30 bg-amber-500/10 text-amber-400;
+  }
+
+  .pill.info {
+    @apply border-primary/30 bg-primary/10 text-primary;
+  }
+
+  .pill.team {
+    @apply border-violet-500/30 bg-violet-500/10 text-violet-400;
+  }
+
+  .pill.ops {
+    @apply border-amber-500/30 bg-amber-500/10 text-amber-400;
+  }
+
+  .stack {
+    @apply grid gap-4;
+  }
+
+  .kv {
+    @apply grid gap-2 text-sm;
+  }
+
+  .timeline {
+    @apply grid gap-3;
+  }
+
+  .timeline-item {
+    @apply rounded-2xl border border-border/70 bg-secondary/30 p-4;
+  }
+
+  .timeline-head {
+    @apply mb-2 flex flex-wrap items-start justify-between gap-3;
+  }
+
+  .stage-strip {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+
+  .stage-card {
+    @apply relative overflow-hidden;
+  }
+
+  .stage-status {
+    @apply text-[11px] font-bold uppercase tracking-[0.22em];
+  }
+
+  .section-note {
+    @apply text-sm leading-6 text-muted-foreground;
+  }
+
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  pre {
+    @apply overflow-auto rounded-2xl border border-border/70 bg-secondary/30 p-4 text-sm text-foreground;
+  }
+
+  code {
+    @apply break-words rounded bg-secondary px-1.5 py-0.5 text-xs;
+  }
+
+  table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  th,
+  td {
+    @apply border-b border-border/70 px-3 py-3 text-left align-top;
+  }
+
+  th {
+    @apply text-[11px] uppercase tracking-[0.22em] text-muted-foreground;
+  }
+
+  ul:not(.mc-list) {
+    @apply mt-2 list-disc pl-5 text-sm text-foreground;
+  }
+
   .mc-card {
     @apply rounded-2xl border border-border/80 bg-card/95 text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg;
   }
