@@ -655,6 +655,10 @@ function layout(title, body, active = '/', attrs = {}) {
       .timeline { display:grid; gap:12px; }
       .timeline-item { border:1px solid var(--line); border-radius:14px; padding:14px; background:rgba(31,41,55,.45); }
       .timeline-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; margin-bottom:8px; }
+      .stage-strip { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:14px; }
+      .stage-card { position:relative; overflow:hidden; }
+      .stage-status { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.12em; }
+      .section-note { color: var(--muted); font-size: 14px; line-height: 1.55; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       .live-dot { display:inline-block; width:10px; height:10px; border-radius:999px; background:var(--ok); box-shadow:0 0 0 0 rgba(16,185,129,.6); animation:pulse 1.8s infinite; margin-right:8px; }
       @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.6);} 70% { box-shadow:0 0 0 10px rgba(16,185,129,0);} 100% { box-shadow:0 0 0 0 rgba(16,185,129,0);} }
@@ -910,10 +914,22 @@ app.get('/projects/:slug', (req, res) => {
         : stage.status === 'blocked'
           ? 'var(--warn)'
           : 'rgba(148,163,184,.18)';
+    const badge = stage.status === 'active'
+      ? 'LIVE'
+      : stage.status === 'done'
+        ? 'DONE'
+        : stage.status === 'blocked'
+          ? 'BLOCKED'
+          : 'PENDING';
     return `
-      <div class="card stack" style="border-top:3px solid ${color}; min-height: 140px;">
-        <div class="label">${stage.label}</div>
-        <div class="stat" style="font-size:18px">${stage.status}</div>
+      <div class="card stack stage-card" style="border-top:3px solid ${color}; min-height: 150px;">
+        <div class="timeline-head">
+          <div>
+            <div class="label">${stage.label}</div>
+            <div class="stat" style="font-size:18px">${stage.status}</div>
+          </div>
+          <span class="stage-status" style="color:${color}">${badge}</span>
+        </div>
         <div class="muted">${stage.stage_key}</div>
       </div>`;
   }).join('');
@@ -923,15 +939,19 @@ app.get('/projects/:slug', (req, res) => {
       <div class="card stack" style="border-left:4px solid ${task.status === 'active' ? 'var(--accent2)' : task.status === 'blocked' ? 'var(--warn)' : 'var(--line)'};">
         <div class="timeline-head">
           <div>
-            <div class="label">${task.status}</div>
+            <div class="label">Task · ${task.status}</div>
             <div class="stat" style="font-size:22px">${task.title}</div>
           </div>
-          <span class="pill ${task.status === 'active' ? 'team' : task.status === 'blocked' ? 'warn' : 'idle'}">${task.priority}</span>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="pill ${task.status === 'active' ? 'team' : task.status === 'blocked' ? 'warn' : 'idle'}">${task.status}</span>
+            <span class="pill info">${task.priority}</span>
+          </div>
         </div>
-        <div class="muted">${task.description || 'No description yet.'}</div>
+        <div class="section-note">${task.description || 'No description yet.'}</div>
         <div class="kv">
           <div><strong>Owner:</strong> ${task.assigned_formal_name || 'Unassigned'}</div>
           <div><strong>Role slug:</strong> <code>${task.assigned_role_slug || '—'}</code></div>
+          <div><strong>Started:</strong> ${task.started_at || '—'}</div>
           <div><strong>Updated:</strong> ${task.updated_at}</div>
         </div>
       </div>`).join('')
@@ -968,12 +988,12 @@ app.get('/projects/:slug', (req, res) => {
   res.send(layout(`Mission Control — ${project.name}`, `
     <div class="top"><div><h1>${project.name}</h1><div class="muted">Project detail view for explicit pipeline state, active tasks, events, and logs.</div></div><div class="muted"><span class="live-dot"></span>Live project view</div></div>
     <div class="grid">
-      <div class="card"><div class="label">Status</div><div class="stat">${project.status}</div></div>
-      <div class="card"><div class="label">Current stage</div><div class="stat" data-project-current-stage style="font-size:22px">${project.current_stage_label || '—'}</div></div>
-      <div class="card"><div class="label">Discord channel</div><div class="stat" style="font-size:18px">${project.discord_channel_name || '—'}</div></div>
-      <div class="card"><div class="label">Active tasks</div><div class="stat" data-project-active-task-count>${project.activeTasks.length}</div></div>
-      <div class="card"><div class="label">Blocked tasks</div><div class="stat" style="color:var(--warn)">${project.summary.blockedTasks}</div></div>
-      <div class="card"><div class="label">Completed tasks</div><div class="stat" style="color:var(--ok)">${project.summary.doneTasks}</div></div>
+      <div class="card"><div class="label">Status</div><div class="stat">${project.status}</div><div class="section-note">Overall project health.</div></div>
+      <div class="card"><div class="label">Current stage</div><div class="stat" data-project-current-stage style="font-size:22px">${project.current_stage_label || '—'}</div><div class="section-note">The active pipeline checkpoint right now.</div></div>
+      <div class="card"><div class="label">Discord channel</div><div class="stat" style="font-size:18px">${project.discord_channel_name || '—'}</div><div class="section-note">Where intervention and project discussion should happen.</div></div>
+      <div class="card"><div class="label">Active tasks</div><div class="stat" data-project-active-task-count>${project.activeTasks.length}</div><div class="section-note">Explicit tasks in the current active stage.</div></div>
+      <div class="card"><div class="label">Blocked tasks</div><div class="stat" style="color:var(--warn)">${project.summary.blockedTasks}</div><div class="section-note">Tasks needing attention or unblock work.</div></div>
+      <div class="card"><div class="label">Completed tasks</div><div class="stat" style="color:var(--ok)">${project.summary.doneTasks}</div><div class="section-note">Tasks already finished in the runtime model.</div></div>
     </div>
     <div class="panel stack">
       <div class="timeline-head">
@@ -983,7 +1003,8 @@ app.get('/projects/:slug', (req, res) => {
         </div>
         <span class="pill team">explicit</span>
       </div>
-      <div class="grid" data-project-stage-grid>${stageBar}</div>
+      <div class="section-note">This is the explicit pipeline backbone for the project. The highlighted stage is the current live stage, and the tasks below belong to that operational moment.</div>
+      <div class="stage-strip" data-project-stage-grid>${stageBar}</div>
     </div>
     <div class="panel stack" style="margin-top:20px">
       <div class="timeline-head">
@@ -993,6 +1014,7 @@ app.get('/projects/:slug', (req, res) => {
         </div>
         <span class="pill ok">current stage</span>
       </div>
+      <div class="section-note">These are the explicit work items currently attached to the active pipeline stage. This section should make it obvious what each team member is doing right now.</div>
       <div class="grid" data-project-active-tasks>${activeTasks}</div>
     </div>
     <div class="grid" style="margin-top:20px">
@@ -1004,6 +1026,7 @@ app.get('/projects/:slug', (req, res) => {
           </div>
           <span class="pill info">event feed</span>
         </div>
+        <div class="section-note">Human-readable state changes. This is the clean operational story.</div>
         <div class="timeline" data-project-events>${eventFeed}</div>
       </div>
       <div class="panel stack">
@@ -1014,6 +1037,7 @@ app.get('/projects/:slug', (req, res) => {
           </div>
           <span class="pill idle">logs</span>
         </div>
+        <div class="section-note">Structured technical output and runtime traces. This is the goblin cave underneath the cleaner event story.</div>
         <div class="timeline" data-project-logs>${logs}</div>
       </div>
     </div>
