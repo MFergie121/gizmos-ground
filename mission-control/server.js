@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 const { Server } = require('socket.io');
-const { initDatabase, getProjectsWithState, getProjectDetail } = require('./db');
+const { initDatabase, getProjectsWithState, getProjectDetail, getTeamAssignments, appendLog } = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -145,120 +145,140 @@ function walk(dir, out, root) {
 
 function getTeamData() {
   const result = safeRun('openclaw status --all');
+  const liveAssignments = getTeamAssignments(db);
+  const liveByRole = new Map(liveAssignments.map((item) => [item.role_slug, item]));
+
+  const baseAgents = [
+    {
+      slug: 'gizmo-core',
+      name: 'Gizmo',
+      role: 'Primary agent',
+      responsibilities: [
+        'Memory and journal upkeep',
+        'Daily brief operations',
+        'Discord workflows',
+        'Research and automation',
+      ],
+    },
+    {
+      slug: 'orchestrator',
+      name: 'Frodo Orchestrator',
+      role: 'Workflow owner',
+      responsibilities: [
+        'Delegation and sequencing',
+        'Role selection and handoffs',
+        'Review gate coordination',
+      ],
+    },
+    {
+      slug: 'product-lead',
+      name: 'Bilbo Product Lead',
+      role: 'Product',
+      responsibilities: [
+        'Problem framing',
+        'MVP scoping',
+        'Prioritisation',
+      ],
+    },
+    {
+      slug: 'tech-lead',
+      name: 'Peregrin Tech Lead',
+      role: 'Engineering leadership',
+      responsibilities: [
+        'Architecture',
+        'Implementation planning',
+        'Technical tradeoffs',
+      ],
+    },
+    {
+      slug: 'ui-ux-designer',
+      name: 'Rosie UI/UX Designer',
+      role: 'Design',
+      responsibilities: [
+        'Interaction design',
+        'Copy and flow review',
+        'Anti-slop polish',
+      ],
+    },
+    {
+      slug: 'frontend-engineer',
+      name: 'Merry Frontend Engineer',
+      role: 'Frontend',
+      responsibilities: [
+        'Component structure',
+        'Accessibility',
+        'User-facing implementation',
+      ],
+    },
+    {
+      slug: 'backend-engineer',
+      name: 'Samwise Backend Engineer',
+      role: 'Backend',
+      responsibilities: [
+        'APIs and services',
+        'Jobs and integrations',
+        'Reliability',
+      ],
+    },
+    {
+      slug: 'database-engineer',
+      name: 'Hamfast Database Engineer',
+      role: 'Data',
+      responsibilities: [
+        'Schema design',
+        'Migrations and indexes',
+        'Data model quality',
+      ],
+    },
+    {
+      slug: 'qa-lead',
+      name: 'Primula QA Lead',
+      role: 'Quality assurance',
+      responsibilities: [
+        'Acceptance criteria',
+        'Test planning',
+        'Regression confidence',
+      ],
+    },
+    {
+      slug: 'security-reviewer',
+      name: 'Fredegar Security Reviewer',
+      role: 'Security',
+      responsibilities: [
+        'Threat review',
+        'Permissions and secrets',
+        'OWASP-style checks',
+      ],
+    },
+    {
+      slug: 'release-engineer',
+      name: 'Odo Release Engineer',
+      role: 'Release',
+      responsibilities: [
+        'Rollout and rollback planning',
+        'Deployment readiness',
+        'Release sanity checks',
+      ],
+    },
+    {
+      slug: 'investigator-retro-lead',
+      name: 'Drogo Investigator / Retro Lead',
+      role: 'Investigation',
+      responsibilities: [
+        'Incident analysis',
+        'Debugging weirdness',
+        'Retros and process improvement',
+      ],
+    },
+  ];
+
   return {
     statusOk: result.ok,
     raw: result.ok ? result.stdout : result.error,
-    agents: [
-      {
-        name: 'Gizmo',
-        role: 'Primary agent',
-        responsibilities: [
-          'Memory and journal upkeep',
-          'Daily brief operations',
-          'Discord workflows',
-          'Research and automation',
-        ],
-      },
-      {
-        name: 'Frodo Orchestrator',
-        role: 'Workflow owner',
-        responsibilities: [
-          'Delegation and sequencing',
-          'Role selection and handoffs',
-          'Review gate coordination',
-        ],
-      },
-      {
-        name: 'Bilbo Product Lead',
-        role: 'Product',
-        responsibilities: [
-          'Problem framing',
-          'MVP scoping',
-          'Prioritisation',
-        ],
-      },
-      {
-        name: 'Peregrin Tech Lead',
-        role: 'Engineering leadership',
-        responsibilities: [
-          'Architecture',
-          'Implementation planning',
-          'Technical tradeoffs',
-        ],
-      },
-      {
-        name: 'Rosie UI/UX Designer',
-        role: 'Design',
-        responsibilities: [
-          'Interaction design',
-          'Copy and flow review',
-          'Anti-slop polish',
-        ],
-      },
-      {
-        name: 'Merry Frontend Engineer',
-        role: 'Frontend',
-        responsibilities: [
-          'Component structure',
-          'Accessibility',
-          'User-facing implementation',
-        ],
-      },
-      {
-        name: 'Samwise Backend Engineer',
-        role: 'Backend',
-        responsibilities: [
-          'APIs and services',
-          'Jobs and integrations',
-          'Reliability',
-        ],
-      },
-      {
-        name: 'Hamfast Database Engineer',
-        role: 'Data',
-        responsibilities: [
-          'Schema design',
-          'Migrations and indexes',
-          'Data model quality',
-        ],
-      },
-      {
-        name: 'Primula QA Lead',
-        role: 'Quality assurance',
-        responsibilities: [
-          'Acceptance criteria',
-          'Test planning',
-          'Regression confidence',
-        ],
-      },
-      {
-        name: 'Fredegar Security Reviewer',
-        role: 'Security',
-        responsibilities: [
-          'Threat review',
-          'Permissions and secrets',
-          'OWASP-style checks',
-        ],
-      },
-      {
-        name: 'Odo Release Engineer',
-        role: 'Release',
-        responsibilities: [
-          'Rollout and rollback planning',
-          'Deployment readiness',
-          'Release sanity checks',
-        ],
-      },
-      {
-        name: 'Drogo Investigator / Retro Lead',
-        role: 'Investigation',
-        responsibilities: [
-          'Incident analysis',
-          'Debugging weirdness',
-          'Retros and process improvement',
-        ],
-      },
-    ],
+    agents: baseAgents.map((agent) => ({
+      ...agent,
+      liveAssignment: liveByRole.get(agent.slug) || null,
+    })),
   };
 }
 
@@ -515,6 +535,7 @@ function getProjectsData() {
 function getLivePayload() {
   return {
     projects: getProjectsWithState(db),
+    team: getTeamData().agents,
     db: dbSummary,
     time: new Date().toISOString(),
   };
@@ -528,7 +549,17 @@ io.on('connection', (socket) => {
   socket.emit('snapshot', getLivePayload());
 });
 
+let heartbeatCounter = 0;
 setInterval(() => {
+  heartbeatCounter += 1;
+  if (heartbeatCounter % 2 === 0) {
+    appendLog(db, {
+      projectSlug: 'mission-control',
+      source: 'socketio',
+      level: 'info',
+      message: `Live snapshot heartbeat ${heartbeatCounter / 2}`,
+    });
+  }
   emitSnapshot();
 }, 5000);
 
@@ -609,6 +640,27 @@ function layout(title, body, active = '/') {
         if (liveProjects && payload.projects) liveProjects.textContent = payload.projects.length;
         const liveTasks = document.querySelector('[data-live-tasks]');
         if (liveTasks && payload.db) liveTasks.textContent = payload.db.tasks;
+        const teamCards = document.querySelectorAll('[data-team-role-slug]');
+        if (teamCards.length && payload.team) {
+          const byRole = new Map(payload.team.map((agent) => [agent.slug, agent]));
+          teamCards.forEach((card) => {
+            const slug = card.getAttribute('data-team-role-slug');
+            const live = byRole.get(slug);
+            const statusEl = card.querySelector('[data-team-status]');
+            const taskEl = card.querySelector('[data-team-task]');
+            const projectEl = card.querySelector('[data-team-project]');
+            if (!statusEl || !taskEl || !projectEl) return;
+            if (live && live.liveAssignment) {
+              statusEl.textContent = live.liveAssignment.assignment_status || 'active';
+              taskEl.textContent = live.liveAssignment.task_title || '—';
+              projectEl.textContent = live.liveAssignment.project_name || '—';
+            } else {
+              statusEl.textContent = slug === 'gizmo-core' ? 'active' : 'idle';
+              taskEl.textContent = slug === 'gizmo-core' ? 'General operations' : '—';
+              projectEl.textContent = '—';
+            }
+          });
+        }
       });
     </script>
     <div class="app">
@@ -1137,17 +1189,29 @@ app.get('/docs', (req, res) => {
 
 app.get('/team', (req, res) => {
   const team = getTeamData();
-  const cards = team.agents.map((agent, index) => `
-    <div class="card stack" style="border-top:3px solid ${index === 0 ? 'var(--accent)' : index === 1 ? 'var(--gold)' : 'var(--accent2)'};">
-      <div class="timeline-head">
-        <div>
-          <div class="label">${agent.role}</div>
-          <div class="stat" style="font-size:24px">${agent.name}</div>
+  const cards = team.agents.map((agent, index) => {
+    const live = agent.liveAssignment;
+    const status = live ? live.assignment_status : (agent.slug === 'gizmo-core' ? 'active' : 'idle');
+    const task = live ? live.task_title : (agent.slug === 'gizmo-core' ? 'General operations' : '—');
+    const project = live ? live.project_name : '—';
+
+    return `
+      <div class="card stack" data-team-role-slug="${agent.slug}" style="border-top:3px solid ${index === 0 ? 'var(--accent)' : index === 1 ? 'var(--gold)' : 'var(--accent2)'};">
+        <div class="timeline-head">
+          <div>
+            <div class="label">${agent.role}</div>
+            <div class="stat" style="font-size:24px">${agent.name}</div>
+          </div>
+          <span class="pill ${index === 0 ? 'info' : 'team'}">${index === 0 ? 'Core' : 'Team'}</span>
         </div>
-        <span class="pill ${index === 0 ? 'info' : 'team'}">${index === 0 ? 'Core' : 'Team'}</span>
-      </div>
-      <ul>${agent.responsibilities.map((r) => `<li>${r}</li>`).join('')}</ul>
-    </div>`).join('');
+        <div class="kv">
+          <div><strong>Status:</strong> <span data-team-status>${status}</span></div>
+          <div><strong>Current task:</strong> <span data-team-task>${task}</span></div>
+          <div><strong>Current project:</strong> <span data-team-project>${project}</span></div>
+        </div>
+        <ul>${agent.responsibilities.map((r) => `<li>${r}</li>`).join('')}</ul>
+      </div>`;
+  }).join('');
   res.send(layout('Mission Control — Team', `
     <div class="top"><div><h1>Team</h1><div class="muted">Current active team model. No longer tiny — now a properly staffed little fellowship.</div></div></div>
     <div class="grid">${cards}</div>

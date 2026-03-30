@@ -334,6 +334,40 @@ function getProjectDetail(db, slug) {
   return projects.find((project) => project.slug === slug) || null;
 }
 
+function getTeamAssignments(db) {
+  const assignments = db.prepare(`
+    SELECT ra.role_slug, ra.formal_name, ra.assignment_status, ra.started_at,
+           t.title AS task_title, t.status AS task_status,
+           p.slug AS project_slug, p.name AS project_name,
+           ps.label AS stage_label
+    FROM role_assignments ra
+    JOIN tasks t ON t.id = ra.task_id
+    JOIN projects p ON p.id = ra.project_id
+    LEFT JOIN pipeline_stages ps ON ps.id = t.stage_id
+    WHERE ra.assignment_status = 'active'
+    ORDER BY datetime(ra.started_at) DESC, ra.id DESC
+  `).all();
+
+  const byRole = new Map();
+  assignments.forEach((row) => {
+    if (!byRole.has(row.role_slug)) {
+      byRole.set(row.role_slug, row);
+    }
+  });
+
+  return Array.from(byRole.values());
+}
+
+function appendLog(db, { projectSlug, roleSlug = null, taskId = null, source = 'mission-control', level = 'info', message }) {
+  const project = db.prepare('SELECT id FROM projects WHERE slug = ?').get(projectSlug);
+  if (!project) return;
+
+  db.prepare(`
+    INSERT INTO logs (project_id, task_id, role_slug, source, level, message)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(project.id, taskId, roleSlug, source, level, message);
+}
+
 function initDatabase(options = {}) {
   const db = connectDb();
   migrate(db);
@@ -344,7 +378,9 @@ function initDatabase(options = {}) {
 module.exports = {
   DB_PATH,
   DEFAULT_STAGES,
+  appendLog,
   getProjectDetail,
   getProjectsWithState,
+  getTeamAssignments,
   initDatabase,
 };
