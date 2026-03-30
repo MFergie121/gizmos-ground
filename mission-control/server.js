@@ -661,6 +661,7 @@ function layout(title, body, active = '/', attrs = {}) {
       .section-note { color: var(--muted); font-size: 14px; line-height: 1.55; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
       .live-dot { display:inline-block; width:10px; height:10px; border-radius:999px; background:var(--ok); box-shadow:0 0 0 0 rgba(16,185,129,.6); animation:pulse 1.8s infinite; margin-right:8px; }
+      .team-live-dot { display:inline-block; width:10px; height:10px; border-radius:999px; background:rgba(148,163,184,.45); margin-right:8px; }
       @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.6);} 70% { box-shadow:0 0 0 10px rgba(16,185,129,0);} 100% { box-shadow:0 0 0 0 rgba(16,185,129,0);} }
       code, pre { white-space: pre-wrap; word-break: break-word; }
       pre { background:#0a0f1a; border:1px solid var(--line); padding:14px; border-radius:12px; overflow:auto; }
@@ -689,15 +690,18 @@ function layout(title, body, active = '/', attrs = {}) {
             const statusEl = card.querySelector('[data-team-status]');
             const taskEl = card.querySelector('[data-team-task]');
             const projectEl = card.querySelector('[data-team-project]');
+            const liveDot = card.querySelector('[data-team-live-dot]');
             if (!statusEl || !taskEl || !projectEl) return;
             if (live && live.liveAssignment) {
               statusEl.textContent = live.liveAssignment.assignment_status || 'active';
               taskEl.textContent = live.liveAssignment.task_title || '—';
               projectEl.textContent = live.liveAssignment.project_name || '—';
+              if (liveDot) liveDot.style.background = 'var(--ok)';
             } else {
               statusEl.textContent = slug === 'gizmo-core' ? 'active' : 'idle';
               taskEl.textContent = slug === 'gizmo-core' ? 'General operations' : '—';
               projectEl.textContent = '—';
+              if (liveDot) liveDot.style.background = slug === 'gizmo-core' ? 'var(--ok)' : 'rgba(148,163,184,.45)';
             }
           });
         }
@@ -1094,7 +1098,7 @@ app.get('/skills', (req, res) => {
 app.get('/activity', (req, res) => {
   const activity = getRecentActivityData();
   const runtimeProjects = getProjectsWithState(db);
-  const runtimeEvents = runtimeProjects.flatMap((project) => project.events.slice(0, 5).map((event) => ({
+  const runtimeEvents = runtimeProjects.flatMap((project) => project.events.slice(0, 8).map((event) => ({
     type: 'runtime',
     subject: `${project.name}: ${event.message}`,
     date: event.created_at,
@@ -1125,6 +1129,7 @@ app.get('/activity', (req, res) => {
     <div class="top"><div><h1>Recent Activity</h1><div class="muted">A stitched-together feed of commits, journals, projects, and scheduled work.</div></div></div>
     <div class="grid">
       <div class="card"><div class="label">Recent items</div><div class="stat">${mergedItems.length}</div></div>
+      <div class="card"><div class="label">Runtime events</div><div class="stat" style="color:var(--accent2)">${runtimeEvents.length}</div></div>
       <div class="card"><div class="label">Commits sampled</div><div class="stat">${activity.commitsCount}</div></div>
       <div class="card"><div class="label">Journals known</div><div class="stat">${activity.journalsCount}</div></div>
       <div class="card"><div class="label">Projects known</div><div class="stat">${activity.projectsCount}</div></div>
@@ -1287,10 +1292,11 @@ app.get('/team', (req, res) => {
         <div class="timeline-head">
           <div>
             <div class="label">${agent.role}</div>
-            <div class="stat" style="font-size:24px">${agent.name}</div>
+            <div class="stat" style="font-size:24px"><span class="team-live-dot" data-team-live-dot></span>${agent.name}</div>
           </div>
           <span class="pill ${index === 0 ? 'info' : 'team'}">${index === 0 ? 'Core' : 'Team'}</span>
         </div>
+        <div class="section-note">Live assignment state from the runtime model. This tells you whether the role is actively attached to explicit project work right now.</div>
         <div class="kv">
           <div><strong>Status:</strong> <span data-team-status>${status}</span></div>
           <div><strong>Current task:</strong> <span data-team-task>${task}</span></div>
@@ -1300,7 +1306,7 @@ app.get('/team', (req, res) => {
       </div>`;
   }).join('');
   res.send(layout('Mission Control — Team', `
-    <div class="top"><div><h1>Team</h1><div class="muted">Current active team model. No longer tiny — now a properly staffed little fellowship.</div></div></div>
+    <div class="top"><div><h1>Team</h1><div class="muted">Current active team model. No longer tiny — now a properly staffed little fellowship.</div></div><div class="muted"><span class="live-dot"></span>Live role assignments</div></div>
     <div class="grid">${cards}</div>
     <div class="panel stack">
       <div class="timeline-head">
