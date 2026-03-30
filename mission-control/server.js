@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 const { Server } = require('socket.io');
-const { initDatabase, getProjectsWithState, getProjectDetail, getTeamAssignments, appendLog } = require('./db');
+const { initDatabase, getProjectsWithState, getProjectDetail, getTeamAssignments, appendLog, appendEvent } = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -559,11 +559,19 @@ setInterval(() => {
       level: 'info',
       message: `Live snapshot heartbeat ${heartbeatCounter / 2}`,
     });
+    appendEvent(db, {
+      projectSlug: 'mission-control',
+      eventType: 'runtime.heartbeat',
+      roleSlug: 'orchestrator',
+      message: `Frodo Orchestrator heartbeat ${heartbeatCounter / 2}`,
+      payload: { heartbeat: heartbeatCounter / 2 },
+    });
   }
   emitSnapshot();
 }, 5000);
 
-function layout(title, body, active = '/') {
+function layout(title, body, active = '/', attrs = {}) {
+  const bodyAttrs = Object.entries(attrs).map(([key, value]) => `${key}="${String(value).replace(/"/g, '&quot;')}"`).join(' ');
   return `<!doctype html>
   <html lang="en">
   <head>
@@ -628,7 +636,7 @@ function layout(title, body, active = '/') {
       @media (max-width: 900px) { .app { grid-template-columns: 1fr; } .sidebar { border-right:0; border-bottom:1px solid var(--line); } }
     </style>
   </head>
-  <body>
+  <body ${bodyAttrs}>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       window.__mcSocket = io();
@@ -660,6 +668,17 @@ function layout(title, body, active = '/') {
               projectEl.textContent = '—';
             }
           });
+        }
+
+        const pageProjectSlug = document.body.getAttribute('data-project-slug');
+        if (pageProjectSlug && payload.projects) {
+          const project = payload.projects.find((p) => p.slug === pageProjectSlug);
+          if (project) {
+            const stageName = document.querySelector('[data-project-current-stage]');
+            if (stageName) stageName.textContent = project.current_stage_label || '—';
+            const activeTaskCount = document.querySelector('[data-project-active-task-count]');
+            if (activeTaskCount) activeTaskCount.textContent = project.activeTasks.length;
+          }
         }
       });
     </script>
@@ -915,12 +934,12 @@ app.get('/projects/:slug', (req, res) => {
     : '<div class="timeline-item">No logs yet.</div>';
 
   res.send(layout(`Mission Control — ${project.name}`, `
-    <div class="top"><div><h1>${project.name}</h1><div class="muted">Project detail view for explicit pipeline state, active tasks, events, and logs.</div></div></div>
+    <div class="top"><div><h1>${project.name}</h1><div class="muted">Project detail view for explicit pipeline state, active tasks, events, and logs.</div></div><div class="muted"><span class="live-dot"></span>Live project view</div></div>
     <div class="grid">
       <div class="card"><div class="label">Status</div><div class="stat">${project.status}</div></div>
-      <div class="card"><div class="label">Current stage</div><div class="stat" style="font-size:22px">${project.current_stage_label || '—'}</div></div>
+      <div class="card"><div class="label">Current stage</div><div class="stat" data-project-current-stage style="font-size:22px">${project.current_stage_label || '—'}</div></div>
       <div class="card"><div class="label">Discord channel</div><div class="stat" style="font-size:18px">${project.discord_channel_name || '—'}</div></div>
-      <div class="card"><div class="label">Active tasks</div><div class="stat">${project.activeTasks.length}</div></div>
+      <div class="card"><div class="label">Active tasks</div><div class="stat" data-project-active-task-count>${project.activeTasks.length}</div></div>
     </div>
     <div class="panel stack">
       <div class="timeline-head">
@@ -930,7 +949,7 @@ app.get('/projects/:slug', (req, res) => {
         </div>
         <span class="pill team">explicit</span>
       </div>
-      <div class="grid">${stageBar}</div>
+      <div class="grid" data-project-stage-grid>${stageBar}</div>
     </div>
     <div class="panel stack" style="margin-top:20px">
       <div class="timeline-head">
@@ -940,7 +959,7 @@ app.get('/projects/:slug', (req, res) => {
         </div>
         <span class="pill ok">current stage</span>
       </div>
-      <div class="grid">${activeTasks}</div>
+      <div class="grid" data-project-active-tasks>${activeTasks}</div>
     </div>
     <div class="grid" style="margin-top:20px">
       <div class="panel stack">
@@ -951,7 +970,7 @@ app.get('/projects/:slug', (req, res) => {
           </div>
           <span class="pill info">event feed</span>
         </div>
-        <div class="timeline">${eventFeed}</div>
+        <div class="timeline" data-project-events>${eventFeed}</div>
       </div>
       <div class="panel stack">
         <div class="timeline-head">
@@ -961,10 +980,10 @@ app.get('/projects/:slug', (req, res) => {
           </div>
           <span class="pill idle">logs</span>
         </div>
-        <div class="timeline">${logs}</div>
+        <div class="timeline" data-project-logs>${logs}</div>
       </div>
     </div>
-  `, '/projects'));
+  `, '/projects', { 'data-project-slug': project.slug }));
 });
 
 app.get('/skills', (req, res) => {

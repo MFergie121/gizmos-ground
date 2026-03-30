@@ -368,6 +368,16 @@ function appendLog(db, { projectSlug, roleSlug = null, taskId = null, source = '
   `).run(project.id, taskId, roleSlug, source, level, message);
 }
 
+function appendEvent(db, { projectSlug, taskId = null, stageId = null, eventType, roleSlug = null, message, payload = null }) {
+  const project = db.prepare('SELECT id FROM projects WHERE slug = ?').get(projectSlug);
+  if (!project) return;
+
+  db.prepare(`
+    INSERT INTO events (project_id, task_id, stage_id, event_type, role_slug, message, payload_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(project.id, taskId, stageId, eventType, roleSlug, message, payload ? JSON.stringify(payload) : null);
+}
+
 function initDatabase(options = {}) {
   const db = connectDb();
   migrate(db);
@@ -378,6 +388,7 @@ function initDatabase(options = {}) {
 module.exports = {
   DB_PATH,
   DEFAULT_STAGES,
+  appendEvent,
   appendLog,
   getProjectDetail,
   getProjectsWithState,
