@@ -113,6 +113,7 @@ Then refresh `/projects`.
 - Node
 - Express
 - SQLite (`better-sqlite3`) for the Mission Control v2 data backbone
+- Socket.IO for live runtime updates
 - Local filesystem + OpenClaw CLI as the first data sources
 
 ## Notes

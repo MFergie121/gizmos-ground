@@ -1,11 +1,15 @@
 const express = require('express');
 const fs = require('fs');
+const http = require('http');
 const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
+const { Server } = require('socket.io');
 const { initDatabase, getProjectsWithState, getProjectDetail } = require('./db');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 3187;
 const HOST = process.env.HOST || '127.0.0.1';
 const REPO_ROOT = '/Users/maxfergie/gizmos-ground';
@@ -508,6 +512,26 @@ function getProjectsData() {
   };
 }
 
+function getLivePayload() {
+  return {
+    projects: getProjectsWithState(db),
+    db: dbSummary,
+    time: new Date().toISOString(),
+  };
+}
+
+function emitSnapshot() {
+  io.emit('snapshot', getLivePayload());
+}
+
+io.on('connection', (socket) => {
+  socket.emit('snapshot', getLivePayload());
+});
+
+setInterval(() => {
+  emitSnapshot();
+}, 5000);
+
 function layout(title, body, active = '/') {
   return `<!doctype html>
   <html lang="en">
@@ -565,6 +589,8 @@ function layout(title, body, active = '/') {
       .timeline-item { border:1px solid var(--line); border-radius:14px; padding:14px; background:rgba(31,41,55,.45); }
       .timeline-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap; margin-bottom:8px; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .live-dot { display:inline-block; width:10px; height:10px; border-radius:999px; background:var(--ok); box-shadow:0 0 0 0 rgba(16,185,129,.6); animation:pulse 1.8s infinite; margin-right:8px; }
+      @keyframes pulse { 0% { box-shadow:0 0 0 0 rgba(16,185,129,.6);} 70% { box-shadow:0 0 0 10px rgba(16,185,129,0);} 100% { box-shadow:0 0 0 0 rgba(16,185,129,0);} }
       code, pre { white-space: pre-wrap; word-break: break-word; }
       pre { background:#0a0f1a; border:1px solid var(--line); padding:14px; border-radius:12px; overflow:auto; }
       ul { margin: 8px 0 0 18px; }
@@ -572,6 +598,19 @@ function layout(title, body, active = '/') {
     </style>
   </head>
   <body>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      window.__mcSocket = io();
+      window.__mcSocket.on('snapshot', (payload) => {
+        window.__mcLivePayload = payload;
+        const liveTime = document.querySelector('[data-live-time]');
+        if (liveTime && payload.time) liveTime.textContent = payload.time;
+        const liveProjects = document.querySelector('[data-live-projects]');
+        if (liveProjects && payload.projects) liveProjects.textContent = payload.projects.length;
+        const liveTasks = document.querySelector('[data-live-tasks]');
+        if (liveTasks && payload.db) liveTasks.textContent = payload.db.tasks;
+      });
+    </script>
     <div class="app">
       <aside class="sidebar">
         <div class="brand"><span class="brand-mark">⚙️</span> Gizmo Mission Control</div>
@@ -626,14 +665,14 @@ app.get('/', (req, res) => {
         <h1>Mission Control</h1>
         <div class="muted">Dynamic local web app for Gizmo’s operator surfaces.</div>
       </div>
-      <div class="muted">Now very much not a static HTML fossil.</div>
+      <div class="muted"><span class="live-dot"></span>Live runtime connected · updated <span data-live-time>${new Date().toISOString()}</span></div>
     </div>
     <div class="grid">
       <div class="card"><div class="label">Scheduled jobs</div><div class="stat">${schedule.jobs.length}</div><div class="muted" style="margin-top:8px">Automation across the system.</div></div>
-      <div class="card"><div class="label">Projects tracked</div><div class="stat" style="color:var(--accent)">${runtimeProjects.length}</div><div class="muted" style="margin-top:8px">Active work surfaces under observation.</div></div>
+      <div class="card"><div class="label">Projects tracked</div><div class="stat" data-live-projects style="color:var(--accent)">${runtimeProjects.length}</div><div class="muted" style="margin-top:8px">Active work surfaces under observation.</div></div>
       <div class="card"><div class="label">Journal entries</div><div class="stat">${memory.files.length}</div><div class="muted" style="margin-top:8px">Short-term memory checkpoints.</div></div>
       <div class="card"><div class="label">Context signal</div><div class="stat" style="color:${context.recentJournal ? 'var(--ok)' : 'var(--warn)'}">${context.recentJournal ? 'Live' : 'Cold'}</div><div class="muted" style="margin-top:8px">Whether Gizmo has fresh context on hand.</div></div>
-      <div class="card"><div class="label">SQLite tasks</div><div class="stat" style="color:var(--accent2)">${dbSummary.tasks}</div><div class="muted" style="margin-top:8px">Explicit task records in the v2 backbone.</div></div>
+      <div class="card"><div class="label">SQLite tasks</div><div class="stat" data-live-tasks style="color:var(--accent2)">${dbSummary.tasks}</div><div class="muted" style="margin-top:8px">Explicit task records in the v2 backbone.</div></div>
       <div class="card"><div class="label">Agents visualised</div><div class="stat" style="color:var(--gold)">${team.agents.length}</div><div class="muted" style="margin-top:8px">Gizmo plus the Hobbit professionals.</div></div>
     </div>
     <div class="grid">
@@ -1125,6 +1164,6 @@ app.get('/team', (req, res) => {
   `, '/team'));
 });
 
-app.listen(PORT, HOST, () => {
+server.listen(PORT, HOST, () => {
   console.log(`Mission Control listening on http://${HOST}:${PORT}`);
 });
