@@ -61,6 +61,16 @@ Notes:
 - macOS firewall may prompt you to allow incoming connections for Node
 - if you want access outside your local network later, that should be done intentionally and with proper auth/reverse proxying rather than raw exposure
 
+### Public/tunnel-ready config
+
+Mission Control now also supports an optional public base URL environment variable for future tunnel/reverse-proxy work:
+
+```bash
+PUBLIC_BASE_URL=https://mission-control.example.com npm start
+```
+
+This does not expose the app by itself, but it gives the runtime a canonical external URL to report via health/status as the Cloudflare phase approaches.
+
 ### What to expect
 
 - The app runs locally only unless you explicitly bind it for LAN or tunnel access

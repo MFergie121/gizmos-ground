@@ -12,6 +12,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 3187;
 const HOST = process.env.HOST || '127.0.0.1';
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || null;
 const REPO_ROOT = '/Users/maxfergie/gizmos-ground';
 const { db, summary: dbSummary, path: dbPath } = initDatabase({ repoPath: REPO_ROOT });
 const OPENCLAW_WORKSPACE = '/Users/maxfergie/.openclaw/workspace';
@@ -705,7 +706,7 @@ function layout(title, body, active = '/', attrs = {}) {
 }
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, service: 'mission-control', time: new Date().toISOString(), db: dbSummary });
+  res.json({ ok: true, service: 'mission-control', time: new Date().toISOString(), db: dbSummary, publicBaseUrl: PUBLIC_BASE_URL, host: HOST, port: PORT });
 });
 
 app.get('/api/schedule', (req, res) => res.json(getScheduleData()));
@@ -839,7 +840,9 @@ app.get('/projects', (req, res) => {
         <div><strong>GitHub:</strong> ${project.github_url ? `<a href="${project.github_url}" style="color:#93c5fd">${project.github_url}</a>` : '—'}</div>
         <div><strong>Discord channel:</strong> ${project.discord_channel_name || '—'}</div>
         <div><strong>Project memory:</strong> <code>${project.project_memory_path || '—'}</code></div>
-        <div><strong>Active tasks:</strong> ${project.activeTasks.length}</div>
+        <div><strong>Active tasks:</strong> ${project.summary.activeTasks}</div>
+        <div><strong>Blocked tasks:</strong> ${project.summary.blockedTasks}</div>
+        <div><strong>Completed tasks:</strong> ${project.summary.doneTasks}</div>
       </div>
       <div><a href="/projects/${project.slug}" style="color:#bfdbfe; text-decoration:none; font-weight:700;">Open project detail →</a></div>
     </div>`).join('');
@@ -855,6 +858,8 @@ app.get('/projects', (req, res) => {
     <div class="top"><div><h1>Projects</h1><div class="muted">Projects registered in Mission Control’s runtime backbone.</div></div></div>
     <div class="grid">
       <div class="card"><div class="label">Projects tracked</div><div class="stat">${projects.length}</div></div>
+      <div class="card"><div class="label">Active tasks</div><div class="stat">${projects.reduce((sum, project) => sum + project.summary.activeTasks, 0)}</div></div>
+      <div class="card"><div class="label">Blocked tasks</div><div class="stat" style="color:var(--warn)">${projects.reduce((sum, project) => sum + project.summary.blockedTasks, 0)}</div></div>
       <div class="card"><div class="label">Data source</div><div class="stat" style="font-size:16px; line-height:1.4">SQLite runtime model</div></div>
     </div>
     ${projects.length === 0 ? emptyState : `<div class="grid">${cards}</div>`}
@@ -940,6 +945,8 @@ app.get('/projects/:slug', (req, res) => {
       <div class="card"><div class="label">Current stage</div><div class="stat" data-project-current-stage style="font-size:22px">${project.current_stage_label || '—'}</div></div>
       <div class="card"><div class="label">Discord channel</div><div class="stat" style="font-size:18px">${project.discord_channel_name || '—'}</div></div>
       <div class="card"><div class="label">Active tasks</div><div class="stat" data-project-active-task-count>${project.activeTasks.length}</div></div>
+      <div class="card"><div class="label">Blocked tasks</div><div class="stat" style="color:var(--warn)">${project.summary.blockedTasks}</div></div>
+      <div class="card"><div class="label">Completed tasks</div><div class="stat" style="color:var(--ok)">${project.summary.doneTasks}</div></div>
     </div>
     <div class="panel stack">
       <div class="timeline-head">

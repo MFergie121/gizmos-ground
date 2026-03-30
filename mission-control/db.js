@@ -317,6 +317,13 @@ function getProjectsWithState(db) {
       LIMIT 20
     `).all(project.id);
 
+    const summary = {
+      totalTasks: tasks.length,
+      activeTasks: tasks.filter((task) => task.status === 'active').length,
+      blockedTasks: tasks.filter((task) => task.status === 'blocked').length,
+      doneTasks: tasks.filter((task) => task.status === 'done').length,
+    };
+
     return {
       ...project,
       stages,
@@ -325,6 +332,7 @@ function getProjectsWithState(db) {
       activeTasks,
       events,
       logs,
+      summary,
     };
   });
 }
