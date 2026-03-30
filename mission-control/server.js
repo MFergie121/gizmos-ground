@@ -1037,43 +1037,79 @@ app.get('/skills', (req, res) => {
   const gizmoTeam = skills.skills.filter((skill) => skill.category === 'gizmo-team');
   const general = skills.skills.filter((skill) => skill.category === 'general');
 
-  const renderCards = (items) => items.map((skill) => `
-    <div class="card stack">
-      <div class="timeline-head">
+  const renderList = (items, title, icon) => `
+    <section class="mc-panel p-6">
+      <div class="flex items-center justify-between gap-4 border-b border-border/70 pb-4">
         <div>
-          <div class="label">${skill.hasSkillDoc ? 'Documented skill' : 'Skill folder'}</div>
-          <div class="stat" style="font-size:24px">${skill.name}</div>
+          <p class="mc-kicker">${title}</p>
+          <h2 class="mt-2 text-xl font-semibold tracking-tight text-foreground">${items.length} skills</h2>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <span class="pill ${skill.category === 'team-ops' ? 'ops' : skill.category === 'gizmo-team' ? 'team' : 'info'}">${skill.category}</span>
-          <span class="pill ${skill.hasSkillDoc ? 'ok' : 'warn'}">${skill.hasSkillDoc ? 'Ready' : 'Thin docs'}</span>
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+          <i data-lucide="${icon}" class="mc-icon"></i>
         </div>
       </div>
-      <div class="muted">${skill.summary}</div>
-      <div class="kv">
-        <div><strong>Path:</strong> <code>${skill.path}</code></div>
-        <div><strong>SKILL.md:</strong> ${skill.hasSkillDoc ? 'Yes' : 'No'}</div>
-        <div><strong>Doc path:</strong> <code>${skill.skillMdPath}</code></div>
+      <div class="mt-4 space-y-3">
+        ${items.map((skill, index) => `
+          <details class="group rounded-2xl border border-border/70 bg-secondary/30 p-4 transition-all open:bg-secondary/50">
+            <summary class="flex cursor-pointer list-none items-start justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-background text-muted-foreground ring-1 ring-border/70">${index + 1}</span>
+                  <div>
+                    <h3 class="text-base font-semibold text-foreground">${skill.name}</h3>
+                    <p class="mc-muted mt-1">${skill.summary}</p>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="mc-pill ${skill.category === 'team-ops' ? 'ops' : skill.category === 'gizmo-team' ? 'team' : 'info'}">${skill.category}</span>
+                <span class="mc-pill ${skill.hasSkillDoc ? 'ok' : 'warn'}">${skill.hasSkillDoc ? 'Ready' : 'Thin docs'}</span>
+                <i data-lucide="chevron-down" class="mc-icon text-muted-foreground transition-transform group-open:rotate-180"></i>
+              </div>
+            </summary>
+            <div class="mt-4 border-t border-border/70 pt-4">
+              <p class="mc-muted">${skill.summary}</p>
+            </div>
+          </details>`).join('')}
       </div>
-    </div>`).join('');
+    </section>`;
 
   res.send(layout('Mission Control — Skills', `
-    <div class="top"><div><h1>Skills</h1><div class="muted">The capabilities Gizmo can reach for when work gets specific.</div></div></div>
-    <div class="grid">
-      <div class="card"><div class="label">Skills available</div><div class="stat">${skills.count}</div></div>
-      <div class="card"><div class="label">Documented skills</div><div class="stat">${documentedCount}</div></div>
-      <div class="card"><div class="label">Gizmo Team skills</div><div class="stat" style="color:var(--accent2)">${gizmoTeam.length}</div></div>
-      <div class="card"><div class="label">Team ops skills</div><div class="stat" style="color:var(--gold)">${teamOps.length}</div></div>
-      <div class="card"><div class="label">Skills root</div><div class="stat" style="font-size:16px; line-height:1.4">${skills.root}</div></div>
+    <div class="flex flex-col gap-8">
+      <section class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p class="mc-kicker">Capabilities</p>
+          <h1 class="text-3xl font-semibold tracking-tight text-foreground">Skills</h1>
+          <p class="mc-muted mt-2 max-w-3xl">A cleaner map of what Gizmo can do, grouped by team operations, specialist roles, and broader general capabilities.</p>
+        </div>
+      </section>
+
+      <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="mc-card p-5"><p class="mc-kicker">Skills available</p><p class="mc-value mt-2">${skills.count}</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Documented skills</p><p class="mc-value mt-2">${documentedCount}</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Gizmo Team skills</p><p class="mc-value mt-2 text-primary">${gizmoTeam.length}</p></div>
+        <div class="mc-card p-5"><p class="mc-kicker">Team ops skills</p><p class="mc-value mt-2 text-accent">${teamOps.length}</p></div>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-2">
+        <div class="mc-card p-5">
+          <p class="mc-kicker">How to use this page</p>
+          <p class="mc-muted mt-3">Collapsed rows keep the page clean. Expand a skill when you want the description, but skip the noisy filesystem trivia unless you actually need to go spelunking.</p>
+        </div>
+        <div class="mc-card p-5">
+          <p class="mc-kicker">Expansion ops</p>
+          <p class="mc-muted mt-3">Team expansion now has dedicated lifecycle skills — onboarding and offboarding sit here as first-class operational tools rather than random extras.</p>
+        </div>
+      </section>
+
+      <div class="grid gap-6 xl:grid-cols-3">
+        ${renderList(teamOps, 'Team ops', 'wrench')}
+        ${renderList(gizmoTeam, 'Gizmo Team', 'users-round')}
+        ${renderList(general, 'General', 'sparkles')}
+      </div>
+
+      ${skills.error ? `<section class="mc-panel p-6"><p class="mc-kicker">Error</p><pre class="mt-4">${skills.error}</pre></section>` : ''}
     </div>
-    <div class="grid">
-      <div class="card"><div class="label">What this page is for</div><div style="margin-top:8px">A quick map of what Gizmo can do without guessing or rummaging through the basement.</div></div>
-      <div class="card"><div class="label">Expansion ops</div><div style="margin-top:8px">Team expansion now has dedicated lifecycle skills — including onboarding and offboarding for new specialists.</div></div>
-    </div>
-    <div class="panel"><div class="label">Team ops</div><div class="grid" style="margin-top:16px">${renderCards(teamOps)}</div></div>
-    <div class="panel" style="margin-top:20px"><div class="label">Gizmo Team</div><div class="grid" style="margin-top:16px">${renderCards(gizmoTeam)}</div></div>
-    <div class="panel" style="margin-top:20px"><div class="label">General skills</div><div class="grid" style="margin-top:16px">${renderCards(general)}</div></div>
-    ${skills.error ? `<div class="panel" style="margin-top:20px"><div class="label">Error</div><pre>${skills.error}</pre></div>` : ''}
   `, '/skills'));
 });
 
