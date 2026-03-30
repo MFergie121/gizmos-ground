@@ -601,7 +601,7 @@ setInterval(() => {
 
 function layout(title, body, active = '/', attrs = {}) {
   const bodyAttrs = Object.entries(attrs).map(([key, value]) => `${key}="${String(value).replace(/"/g, '&quot;')}"`).join(' ');
-  const navItem = (href, label, icon) => `<a href="${href}" class="mc-sidebar-link ${active === href ? 'mc-sidebar-link-active' : ''}"><span class="mc-icon" data-lucide="${icon}"></span><span>${label}</span></a>`;
+  const navItem = (href, label, icon) => `<a href="${href}" class="mc-sidebar-link ${active === href ? 'mc-sidebar-link-active' : ''}"><span class="mc-icon" data-lucide="${icon}"></span><span class="truncate">${label}</span></a>`;
   return `<!doctype html>
   <html lang="en">
   <head>
@@ -687,19 +687,19 @@ function layout(title, body, active = '/', attrs = {}) {
       });
     </script>
     <div class="mc-shell lg:grid lg:min-h-screen lg:grid-cols-[280px_1fr]">
-      <aside class="border-b border-border/70 bg-card/80 backdrop-blur lg:border-b-0 lg:border-r">
-        <div class="flex h-full flex-col gap-6 p-6">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <div class="flex items-center gap-3 text-xl font-semibold tracking-tight">
-                <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-                  <i data-lucide="bot" class="mc-icon h-5 w-5"></i>
-                </div>
-                <span>Gizmo Mission Control</span>
+      <aside class="mc-sidebar">
+        <div class="mc-sidebar-inner">
+          <div class="mc-sidebar-header">
+            <div class="mc-brand">
+              <div class="mc-brand-mark">
+                <i data-lucide="bot" class="mc-icon h-5 w-5"></i>
               </div>
-              <p class="mc-muted mt-3 max-w-xs">Operator dashboard for Max + Gizmo.</p>
+              <div class="mc-brand-copy">
+                <h1 class="mc-brand-title">Gizmo Mission Control</h1>
+                <p class="mc-muted mt-2">Operator dashboard for Max + Gizmo.</p>
+              </div>
             </div>
-            <button onclick="toggleMissionControlTheme()" class="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground">
+            <button onclick="toggleMissionControlTheme()" class="mc-theme-toggle">
               <i data-lucide="sun-moon" class="mc-icon"></i>
               <span data-theme-label>Dark</span>
             </button>
@@ -717,7 +717,7 @@ function layout(title, body, active = '/', attrs = {}) {
           </nav>
         </div>
       </aside>
-      <main class="p-4 md:p-6 xl:p-8">${body}</main>
+      <main class="min-w-0 p-4 md:p-6 xl:p-8">${body}</main>
     </div>
   </body>
   </html>`;

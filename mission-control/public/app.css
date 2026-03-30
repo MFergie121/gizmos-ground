@@ -84,6 +84,38 @@
     @apply min-h-screen bg-background text-foreground;
   }
 
+  .mc-sidebar {
+    @apply border-b border-border/70 bg-card/80 backdrop-blur lg:border-b-0 lg:border-r;
+  }
+
+  .mc-sidebar-inner {
+    @apply flex h-full flex-col gap-6 p-5 lg:p-6;
+  }
+
+  .mc-sidebar-header {
+    @apply flex flex-col gap-4;
+  }
+
+  .mc-brand {
+    @apply flex items-start gap-3;
+  }
+
+  .mc-brand-mark {
+    @apply mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20;
+  }
+
+  .mc-brand-copy {
+    @apply min-w-0;
+  }
+
+  .mc-brand-title {
+    @apply text-lg font-semibold tracking-tight text-foreground leading-tight;
+  }
+
+  .mc-theme-toggle {
+    @apply inline-flex items-center gap-2 self-start rounded-xl border border-border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground;
+  }
+
   /* Legacy compatibility layer while server-rendered pages are migrated */
   .top {
     @apply mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between;
@@ -98,8 +130,8 @@
   }
 
   .grid {
-    @apply grid gap-4;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    @apply grid gap-4 md:gap-5;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   }
 
   .card {
@@ -159,7 +191,7 @@
   }
 
   .timeline-item {
-    @apply rounded-2xl border border-border/70 bg-secondary/30 p-4;
+    @apply rounded-2xl border border-border/70 bg-secondary/30 p-4 transition-colors duration-200 hover:border-primary/20 hover:bg-secondary/50;
   }
 
   .timeline-head {
@@ -213,7 +245,7 @@
   }
 
   .mc-card {
-    @apply rounded-2xl border border-border/80 bg-card/95 text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg;
+    @apply rounded-2xl border border-border/80 bg-card/95 text-card-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-primary/20;
   }
 
   .mc-panel {
@@ -258,5 +290,11 @@
 
   .mc-list li {
     @apply list-none rounded-lg border border-border/70 bg-secondary/40 px-3 py-2 text-sm text-foreground;
+  }
+
+  @media (min-width: 1280px) {
+    .mc-sidebar {
+      min-height: 100vh;
+    }
   }
 }
